@@ -1,0 +1,26 @@
+cflags = -Wall -Wextra -Wpedantic -std=gnu11 -ggdb
+builddir = build
+libraries =
+
+rule link
+  command = gcc $builddir/$in $libraries -o $out
+
+rule cc
+  depfile = $out.d
+  command = gcc -MD -MF $builddir/$out.d $cflags -c $in -o $builddir/$out
+
+build main.o: cc main.c
+
+build game: link main.o
+  libraries = -lX11
+
+rule glslc
+  command = glslc $in -o $out
+
+build shaders/basic.frag.spv: glslc shaders/basic.frag
+build shaders/basic.vert.spv: glslc shaders/basic.vert
+build shaders/model.frag.spv: glslc shaders/model.frag
+build shaders/model.vert.spv: glslc shaders/model.vert
+build shaders/path.frag.spv: glslc shaders/path.frag
+build shaders/path.vert.spv: glslc shaders/path.vert
+

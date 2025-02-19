@@ -1,0 +1,18 @@
+.cache/
+.direnv/
+.pre-commit-config.yaml
+
+# Build Artifacts
+build
+build.old
+client
+server
+*.spv
+*.o
+
+# Ikos Artifacts
+*.bc
+output.db
+
+# Valgrind Artifacts
+vgcore.*
