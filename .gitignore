@@ -6,6 +6,7 @@
 build
 build.old
 client
+game
 server
 *.spv
 *.o
