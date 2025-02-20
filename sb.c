@@ -1,10 +1,10 @@
 #include "bits/types/siginfo_t.h"
 #include "sys/types.h"
 #include <dirent.h>
-#include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 int source_filter(const struct dirent *dir) {
@@ -34,15 +34,14 @@ int shader_filter(const struct dirent *dir) {
 }
 
 void run_command(char *command) {
-	pid_t fork_result = fork();
-	if (fork_result ==0) {
-		int result = system(command);
-		(void)result;
-	}
-	else {
-		siginfo_t info;
-		waitid(P_ALL, 0, &info, WEXITED);
-	}
+    pid_t fork_result = fork();
+    if (fork_result == 0) {
+        int result = system(command);
+        (void)result;
+    } else {
+        siginfo_t info;
+        waitid(P_ALL, 0, &info, WEXITED);
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -139,13 +138,13 @@ int main(int argc, char *argv[]) {
                 free(build_string);
             }
         }
+        fclose(fp);
+
+        printf("Generating compile_commands.json\n");
+        run_command("ninja -t compdb > compile_commands.json");
     } else if (strcmp(command, "clean") == 0) {
-		run_command("ninja -t clean");
-		remove("./compile_commands.json");
-    } else if (strcmp(command, "clangd") == 0) {
-		run_command("ninja -t compdb > compile_commands.json");
-    } else if (strcmp(command, "clangd") == 0) {
-		run_command("ninja -t compdb > compile_commands.json");
+        run_command("ninja -t clean");
+        remove("./compile_commands.json");
     } else {
         fprintf(stderr, "Unknown command");
         exit(EXIT_FAILURE);

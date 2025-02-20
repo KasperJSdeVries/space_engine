@@ -3,11 +3,11 @@
 .pre-commit-config.yaml
 
 # Build Artifacts
-build
-build.old
-client
+build/
+build.ninja
 game
-server
+sb
+compile_commands.json
 *.spv
 *.o
 
