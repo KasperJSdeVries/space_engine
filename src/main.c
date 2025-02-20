@@ -7,7 +7,7 @@
 
 #define KEY_ESCAPE 9
 
-int main() {
+int main(void) {
     Display *display = XOpenDisplay(NULL);
     if (!display) {
         fprintf(stderr, "error: can't open connection to display server.\n");
