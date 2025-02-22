@@ -17,12 +17,14 @@
 
       nativeBuildInputs = with pkgs; [
         gcc
+        cmake
         ninja
       ];
 
       buildInputs = with pkgs; [
         shaderc
         vulkan-extension-layer
+        vulkan-headers
         vulkan-loader
         vulkan-validation-layers
         xorg.libX11
@@ -39,6 +41,7 @@
           glslls
           ikos
           nil
+          neocmakelsp
           kcachegrind
           renderdoc
           vulkan-tools

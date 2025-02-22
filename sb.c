@@ -59,9 +59,12 @@ int main(int argc, char *argv[]) {
         char *vars_and_rules = "cflags = -Wall -Wextra -Wpedantic -std=gnu11 -ggdb\n"
                                "builddir = build\n"
                                "libraries =\n"
-                               "includes =\n\n"
+                               "includes =\n"
+                               "libtype = shared\n\n"
                                "rule link\n"
                                "  command = gcc $in $libraries -o $out\n\n"
+                               "rule link_library\n"
+                               "  command = gcc -$libtype $in $libraries -o $out\n\n"
                                "rule cc\n"
                                "  depfile = $out.d\n"
                                "  command = gcc -MD -MF $out.d $cflags $includes -c $in -o $out\n\n"
@@ -145,6 +148,10 @@ int main(int argc, char *argv[]) {
     } else if (strcmp(command, "clean") == 0) {
         run_command("ninja -t clean");
         remove("./compile_commands.json");
+    } else if (strcmp(command, "watch") == 0) {
+        // TODO: command that watches for new files and file changes to then automatically
+        // regenerate and rebuild.
+        printf("TODO");
     } else {
         fprintf(stderr, "Unknown command");
         exit(EXIT_FAILURE);

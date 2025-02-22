@@ -1,11 +1,14 @@
 #include <X11/X.h>
 #include <X11/Xlib.h>
 
+#include <dlfcn.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
 #define KEY_ESCAPE 9
+
+typedef void (*declare_system)(void);
 
 int main(void) {
     Display *display = XOpenDisplay(NULL);
@@ -31,6 +34,11 @@ int main(void) {
     XSetWMProtocols(display, window, &wm_delete_window, 1);
 
     XMapWindow(display, window);
+
+    void *test_so = dlopen("./libtest_component.so", RTLD_NOW);
+    declare_system func = (declare_system)dlsym(test_so, "declare_system");
+    func();
+    dlclose(test_so);
 
     XEvent event;
 
