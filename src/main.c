@@ -1,15 +1,76 @@
+#ifdef _WIN32
+#include <Windows.h>
+#else
 #include <X11/X.h>
 #include <X11/Xlib.h>
-
-#include <dlfcn.h>
-#include <stdio.h>
-#include <string.h>
 #include <unistd.h>
 
 #define KEY_ESCAPE 9
+#endif
 
-typedef void (*declare_system)(void);
+#include <stdio.h>
+#include <string.h>
 
+#ifdef _WIN32
+
+LRESULT WinProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    switch (uMsg) {
+    case WM_DESTROY:
+        PostQuitMessage(0);
+        return 0;
+
+    default:
+        return DefWindowProcA(hWnd, uMsg, wParam, lParam);
+    }
+}
+
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+    (void)hPrevInstance;
+    (void)lpCmdLine;
+
+    WNDCLASSA class = {0, WinProc, 0, 0, hInstance, NULL, NULL, NULL, NULL, "GameClass"};
+
+    RegisterClassA(&class);
+
+    HWND windowHandle = CreateWindowA("GameClass",
+                                      "Game",
+                                      WS_CAPTION | WS_POPUP | WS_SYSMENU,
+                                      0,
+                                      0,
+                                      720,
+                                      480,
+                                      NULL,
+                                      NULL,
+                                      hInstance,
+                                      NULL);
+
+    ShowWindow(windowHandle, nCmdShow);
+
+    MSG msg;
+    for (;;) {
+        if (GetMessageA(&msg, NULL, 0, 0) == 0) {
+            break;
+        }
+
+        switch (msg.message) {
+        case WM_KEYDOWN:
+            switch (msg.wParam) {
+            case VK_ESCAPE:
+                PostQuitMessage(0);
+                continue;
+            }
+            break;
+        }
+
+        DispatchMessageA(&msg);
+    }
+
+    DestroyWindow(windowHandle);
+    UnregisterClassA("GameClass", hInstance);
+
+    return 0;
+}
+#else
 int main(void) {
     Display *display = XOpenDisplay(NULL);
     if (!display) {
@@ -73,3 +134,4 @@ int main(void) {
 
     return 0;
 }
+#endif
