@@ -24,7 +24,10 @@ typedef struct se_window {
 } se_window;
 
 b8 platform_system_startup(u64 *memory_requirement, struct se_platform_state *state);
+b8 platform_system_poll(struct se_platform_state *state);
+void platform_system_shutdown(struct se_platform_state *state);
 
 b8 platform_window_create(struct se_window_config *config, struct se_window *window);
+void platform_window_destroy(struct se_window *window);
 
 #endif // SE_PLATFORM_H

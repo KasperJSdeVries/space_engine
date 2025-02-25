@@ -20,9 +20,23 @@ int main(void) {
     struct se_platform_state *platform_state = malloc(platform_state_size);
     platform_system_startup(&platform_state_size, platform_state);
 
-    struct se_window_config window_config = {0};
+    struct se_window_config window_config = {
+        .width = 720,
+        .height = 480,
+    };
     struct se_window window;
     platform_window_create(&window_config, &window);
+
+    for (b8 quit = false; quit == false;) {
+        if (!platform_system_poll(platform_state)) {
+            quit = true;
+        }
+    }
+
+    platform_window_destroy(&window);
+
+    platform_system_shutdown(platform_state);
+    free(platform_state);
 }
 
 #ifdef _WIN32
@@ -49,65 +63,6 @@ int windows_main(void) {
 
     DestroyWindow(windowHandle);
     UnregisterClassA("GameClass", hInstance);
-
-    return 0;
-}
-#else
-int linux_main(void) {
-    Display *display = XOpenDisplay(NULL);
-    if (!display) {
-        fprintf(stderr, "error: can't open connection to display server.\n");
-        return 1;
-    }
-
-    Window window = XCreateSimpleWindow(display,
-                                        DefaultRootWindow(display),
-                                        0,
-                                        0,
-                                        720,
-                                        480,
-                                        0,
-                                        BlackPixel(display, DefaultScreen(display)),
-                                        BlackPixel(display, DefaultScreen(display)));
-
-    long event_mask = ExposureMask | KeyPressMask;
-    XSelectInput(display, window, event_mask);
-
-    Atom wm_delete_window = XInternAtom(display, "WM_DELETE_WINDOW", False);
-    XSetWMProtocols(display, window, &wm_delete_window, 1);
-
-    XMapWindow(display, window);
-
-    XEvent event;
-
-    for (int loop = 1; loop;) {
-        XNextEvent(display, &event);
-
-        switch (event.type) {
-        case Expose:
-            puts("window expose");
-            break;
-
-        case KeyPress:
-            printf("key: %d\n", event.xkey.keycode);
-            if (event.xkey.keycode == KEY_ESCAPE) {
-                loop = 0;
-            }
-            break;
-
-        case ClientMessage:
-            if (memcmp(event.xclient.data.b, &wm_delete_window, sizeof(wm_delete_window)) == 0) {
-                loop = 0;
-            }
-            break;
-        }
-    }
-
-    puts("window close");
-
-    XUnmapWindow(display, window);
-    XDestroyWindow(display, window);
-    XCloseDisplay(display);
 
     return 0;
 }
