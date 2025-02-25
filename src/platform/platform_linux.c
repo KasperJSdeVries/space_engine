@@ -1,6 +1,7 @@
 #include "platform.h"
 
 #ifdef __linux__
+#include "core/assert.h"
 
 #include <X11/X.h>
 #include <X11/Xlib.h>
@@ -18,7 +19,11 @@ struct se_window_platform_state {
     Window window;
 };
 
-bool platform_system_startup(size_t *memory_requirement, se_platform_state *state) {
+b8 platform_system_startup(size_t *memory_requirement, se_platform_state *state) {
+    if (!ASSERT(memory_requirement != NULL)) {
+        return false;
+    }
+
     *memory_requirement = sizeof(se_platform_state);
     if (state == NULL) {
         return true;
@@ -27,16 +32,15 @@ bool platform_system_startup(size_t *memory_requirement, se_platform_state *stat
     state_ptr = state;
     state_ptr->display = XOpenDisplay(NULL);
 
-    if (!state_ptr->display) {
-        fprintf(stderr, "error: can't open connection to display server.\n");
+    if (!ASSERT(state_ptr->display)) {
         return false;
     }
 
     return true;
 }
 
-bool platform_window_create(struct se_window_config *config, struct se_window *window) {
-    if (!window) {
+b8 platform_window_create(struct se_window_config *config, struct se_window *window) {
+    if (!ASSERT(window)) {
         return false;
     }
 
@@ -53,8 +57,8 @@ bool platform_window_create(struct se_window_config *config, struct se_window *w
                             BlackPixel(state_ptr->display, DefaultScreen(state_ptr->display)),
                             BlackPixel(state_ptr->display, DefaultScreen(state_ptr->display)));
 
-    long event_mask = ButtonPressMask | ButtonReleaseMask | KeyPressMask | KeyReleaseMask |
-                      ExposureMask | PointerMotionMask | StructureNotifyMask;
+    u64 event_mask = ButtonPressMask | ButtonReleaseMask | KeyPressMask | KeyReleaseMask |
+                     ExposureMask | PointerMotionMask | StructureNotifyMask;
     XSelectInput(state_ptr->display, window->platform_state->window, event_mask);
 
     // TODO: add window-manager interaction

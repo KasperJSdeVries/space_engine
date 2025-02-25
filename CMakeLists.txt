@@ -11,9 +11,12 @@ add_subdirectory(shaders)
 find_package(X11 REQUIRED)
 find_package(Vulkan REQUIRED)
 
+add_compile_definitions("SE_DEBUG=$<CONFIG:Debug>")
+
 file(GLOB_RECURSE GAME_SOURCES CONFIGURE_DEPENDS "src/*.c")
 add_executable(game ${GAME_SOURCES})
 target_link_libraries(game ${X11_LIBRARIES} ${Vulkan_LIBRARIES})
 target_include_directories(game PUBLIC ${X11_INCLUDE_DIRS} ${Vulkan_INCLUDE_DIRS})
+target_include_directories(game PRIVATE "src/")
 add_dependencies(game Shaders)
 

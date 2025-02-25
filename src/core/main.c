@@ -1,4 +1,5 @@
-#include "../platform/platform.h"
+#include "core/defines.h"
+#include "platform/platform.h"
 #ifdef _WIN32
 #include <Windows.h>
 #else
@@ -14,7 +15,7 @@
 #include <string.h>
 
 int main(void) {
-    size_t platform_state_size = 0;
+    u64 platform_state_size = 0;
     platform_system_startup(&platform_state_size, NULL);
     struct se_platform_state *platform_state = malloc(platform_state_size);
     platform_system_startup(&platform_state_size, platform_state);
