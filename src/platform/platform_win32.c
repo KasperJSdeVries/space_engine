@@ -11,18 +11,19 @@
 
 typedef struct se_platform_state {
     HINSTANCE h_instance;
-} platform_state;
+} se_platform_state;
 
-static platform_state *state_ptr;
+static se_platform_state *state_ptr;
 
 struct se_window_platform_state {
     HWND handle;
 };
 
+HMODULE GetCurrentModuleHandle(void);
 LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, LPARAM l_param);
 
-bool platform_system_startup(size_t *memory_requirement, platform_state *state) {
-    *memory_requirement = sizeof(platform_state);
+bool platform_system_startup(size_t *memory_requirement, se_platform_state *state) {
+    *memory_requirement = sizeof(se_platform_state);
     if (state == NULL) {
         return true;
     }
@@ -136,6 +137,17 @@ bool platform_window_create(struct se_window_config *config, struct se_window *w
 
 LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, LPARAM l_param) {
     return DefWindowProcW(hwnd, msg, w_param, l_param);
+}
+
+HMODULE GetCurrentModuleHandle(void) {
+    HMODULE ImageBase;
+    if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                               GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           (LPCWSTR)&GetCurrentModuleHandle,
+                           &ImageBase)) {
+        return ImageBase;
+    }
+    return 0;
 }
 
 #endif // _WIN32

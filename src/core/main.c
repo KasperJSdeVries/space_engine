@@ -10,31 +10,8 @@
 #endif
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-
-#ifdef _WIN32
-
-LRESULT WinProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-    switch (uMsg) {
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        return 0;
-
-    default:
-        return DefWindowProcA(hWnd, uMsg, wParam, lParam);
-    }
-}
-
-HMODULE GetCurrentModuleHandle(void) {
-    HMODULE ImageBase;
-    if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
-                               GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                           (LPCWSTR)&GetCurrentModuleHandle,
-                           &ImageBase)) {
-        return ImageBase;
-    }
-    return 0;
-}
 
 int main(void) {
     size_t platform_state_size = 0;
@@ -45,27 +22,11 @@ int main(void) {
     struct se_window_config window_config = {0};
     struct se_window window;
     platform_window_create(&window_config, &window);
+}
 
-    HMODULE hInstance = GetCurrentModuleHandle();
+#ifdef _WIN32
 
-    WNDCLASSA class = {0, WinProc, 0, 0, hInstance, NULL, NULL, NULL, NULL, "GameClass"};
-
-    RegisterClassA(&class);
-
-    HWND windowHandle = CreateWindowA("GameClass",
-                                      "Game",
-                                      WS_CAPTION | WS_POPUP | WS_SYSMENU,
-                                      0,
-                                      0,
-                                      720,
-                                      480,
-                                      NULL,
-                                      NULL,
-                                      hInstance,
-                                      NULL);
-
-    ShowWindow(windowHandle, SW_NORMAL);
-
+int windows_main(void) {
     MSG msg;
     for (;;) {
         if (GetMessageA(&msg, NULL, 0, 0) == 0) {
@@ -91,7 +52,7 @@ int main(void) {
     return 0;
 }
 #else
-int main(void) {
+int linux_main(void) {
     Display *display = XOpenDisplay(NULL);
     if (!display) {
         fprintf(stderr, "error: can't open connection to display server.\n");
@@ -115,11 +76,6 @@ int main(void) {
     XSetWMProtocols(display, window, &wm_delete_window, 1);
 
     XMapWindow(display, window);
-
-    void *test_so = dlopen("./libtest_component.so", RTLD_NOW);
-    declare_system func = (declare_system)dlsym(test_so, "declare_system");
-    func();
-    dlclose(test_so);
 
     XEvent event;
 
