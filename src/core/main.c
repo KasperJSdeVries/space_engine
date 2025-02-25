@@ -1,3 +1,4 @@
+#include "../platform/platform.h"
 #ifdef _WIN32
 #include <Windows.h>
 #else
@@ -24,9 +25,28 @@ LRESULT WinProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     }
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-    (void)hPrevInstance;
-    (void)lpCmdLine;
+HMODULE GetCurrentModuleHandle(void) {
+    HMODULE ImageBase;
+    if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                               GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           (LPCWSTR)&GetCurrentModuleHandle,
+                           &ImageBase)) {
+        return ImageBase;
+    }
+    return 0;
+}
+
+int main(void) {
+    size_t platform_state_size = 0;
+    platform_system_startup(&platform_state_size, NULL);
+    struct se_platform_state *platform_state = malloc(platform_state_size);
+    platform_system_startup(&platform_state_size, platform_state);
+
+    struct se_window_config window_config = {0};
+    struct se_window window;
+    platform_window_create(&window_config, &window);
+
+    HMODULE hInstance = GetCurrentModuleHandle();
 
     WNDCLASSA class = {0, WinProc, 0, 0, hInstance, NULL, NULL, NULL, NULL, "GameClass"};
 
@@ -44,7 +64,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                                       hInstance,
                                       NULL);
 
-    ShowWindow(windowHandle, nCmdShow);
+    ShowWindow(windowHandle, SW_NORMAL);
 
     MSG msg;
     for (;;) {
