@@ -1,5 +1,5 @@
-#ifndef DEFINES_H
-#define DEFINES_H
+#ifndef SE_DEFINES_H
+#define SE_DEFINES_H
 
 #define UNUSED(value) (void)(value)
 #define TODO(message)                                                                              \
@@ -66,4 +66,4 @@ STATIC_ASSERT(sizeof(b32) == 4, "Expected b32 to be 4 byte.");
 
 #define CLAMP(val, min, max) (((val) < (min)) ? (min) : (((val) > (max)) ? (max) : (val)))
 
-#endif // DEFINES_H
+#endif // SE_DEFINES_H

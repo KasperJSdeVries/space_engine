@@ -1,5 +1,5 @@
-#ifndef ASSERT_H
-#define ASSERT_H
+#ifndef SE_ASSERT_H
+#define SE_ASSERT_H
 
 #include "defines.h"
 #include "logging.h"
@@ -18,4 +18,4 @@ static inline void _assert(const char *assertion, const char *file, u32 line) {
 
 #define ASSERT_UNREACHABLE() _assert("UNREACHABLE", __FILE__, __LINE__)
 
-#endif // ASSERT_H
+#endif // SE_ASSERT_H

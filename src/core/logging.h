@@ -1,5 +1,5 @@
-#ifndef LOGGING_H
-#define LOGGING_H
+#ifndef SE_LOGGING_H
+#define SE_LOGGING_H
 
 #include <stdlib.h>
 
@@ -19,4 +19,4 @@ void __attribute__((format(printf, 2, 3))) LOG(LogLevel level, char *message, ..
         exit(EXIT_FAILURE);                                                                        \
     } while (0)
 
-#endif // LOGGING_H
+#endif // SE_LOGGING_H
