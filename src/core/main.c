@@ -2,12 +2,6 @@
 #include "platform/platform.h"
 #ifdef _WIN32
 #include <Windows.h>
-#else
-#include <X11/X.h>
-#include <X11/Xlib.h>
-#include <unistd.h>
-
-#define KEY_ESCAPE 9
 #endif
 
 #include <stdio.h>
