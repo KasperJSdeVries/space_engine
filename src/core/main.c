@@ -1,5 +1,7 @@
+#include "core/assert.h"
 #include "core/defines.h"
 #include "platform/platform.h"
+#include "render_system/render.h"
 #ifdef _WIN32
 #include <Windows.h>
 #endif
@@ -21,11 +23,15 @@ int main(void) {
     struct se_window window;
     platform_window_create(&window_config, &window);
 
+    ASSERT(render_system_startup());
+
     for (b8 quit = false; quit == false;) {
         if (!platform_system_poll(platform_state)) {
             quit = true;
         }
     }
+
+    render_system_shutdown();
 
     platform_window_destroy(&window);
 
