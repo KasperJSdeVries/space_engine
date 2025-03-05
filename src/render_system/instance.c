@@ -1,8 +1,6 @@
 #include "instance.h"
 #include "core/assert.h"
-
-static const char *validation_layers[] = {"VK_LAYER_KHRONOS_validation"};
-static const u32 validation_layer_count = sizeof(validation_layers) / sizeof(*validation_layers);
+#include "platform/platform.h"
 
 static const char *instance_extensions[] = {VK_EXT_DEBUG_UTILS_EXTENSION_NAME};
 static const u32 instance_extension_count =
@@ -39,15 +37,34 @@ b8 instance_create(struct instance *instance) {
     };
 #endif // ENABLE_VALIDATION_LAYERS
 
+    u32 required_extension_count;
+    platform_get_required_extensions(&required_extension_count, NULL);
+
+#if ENABLE_VALIDATION_LAYERS
+    const char *extensions[required_extension_count + instance_extension_count];
+#else
+    const char *extensions[required_extension_count];
+#endif
+
+    platform_get_required_extensions(&required_extension_count, extensions);
+
+#if ENABLE_VALIDATION_LAYERS
+    for (u32 i = 0; i < instance_extension_count; i++) {
+        extensions[required_extension_count + i] = instance_extensions[i];
+    }
+#endif
+
     VkInstanceCreateInfo instance_create_info = {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pApplicationInfo = &app_info,
+        .ppEnabledExtensionNames = extensions,
 #if ENABLE_VALIDATION_LAYERS
-        .pNext = &debug_messenger_create_info,
-        .ppEnabledExtensionNames = instance_extensions,
-        .enabledExtensionCount = instance_extension_count,
+        .enabledExtensionCount = required_extension_count + instance_extension_count,
         .ppEnabledLayerNames = validation_layers,
         .enabledLayerCount = validation_layer_count,
+        .pNext = &debug_messenger_create_info,
+#else
+        .enabledExtensionCount = required_extension_count,
 #endif // ENABLE_VALIDATION_LAYERS
     };
 

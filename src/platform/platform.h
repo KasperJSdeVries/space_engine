@@ -2,6 +2,7 @@
 #define SE_PLATFORM_H
 
 #include "core/defines.h"
+#include <vulkan/vulkan.h>
 
 struct se_platform_state;
 
@@ -29,5 +30,11 @@ void platform_system_shutdown(struct se_platform_state *state);
 
 b8 platform_window_create(struct se_window_config *config, struct se_window *window);
 void platform_window_destroy(struct se_window *window);
+
+void platform_get_required_extensions(u32 *extension_count, const char **required_extensions);
+b8 platform_surface_create(const struct se_window *window,
+                           VkInstance instance,
+                           VkSurfaceKHR *surface);
+void platform_get_framebuffer_size(const struct se_window *window, VkExtent2D *extent);
 
 #endif // SE_PLATFORM_H

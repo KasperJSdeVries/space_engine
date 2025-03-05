@@ -23,7 +23,7 @@ int main(void) {
     struct se_window window;
     platform_window_create(&window_config, &window);
 
-    ASSERT(render_system_startup());
+    ASSERT(render_system_startup(&window));
 
     for (b8 quit = false; quit == false;) {
         if (!platform_system_poll(platform_state)) {

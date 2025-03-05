@@ -19,13 +19,26 @@ struct instance {
 };
 
 struct device {
-	VkPhysicalDevice physical_device;
-	VkDevice handle;
+    VkPhysicalDevice physical_device;
+    VkDevice handle;
+    VkQueue graphics_queue;
+    VkQueue present_queue;
+    VkQueue transfer_queue;
+    VkQueue compute_queue;
+};
+
+struct swapchain {
+    VkSwapchainKHR handle;
+	u32 image_count;
+	VkImage *images;
+	VkImageView *image_views;
 };
 
 struct render_system_state {
     struct instance instance;
-	struct device device;
+    struct device device;
+    VkSurfaceKHR surface;
+    struct swapchain swapchain;
 };
 
 #endif // RENDER_TYPES_H

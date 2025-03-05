@@ -1,4 +1,5 @@
 #include "platform.h"
+#include "vulkan/vulkan_core.h"
 
 #ifdef __linux__
 #include "core/assert.h"
@@ -6,6 +7,7 @@
 
 #include <X11/X.h>
 #include <X11/Xlib.h>
+#include <vulkan/vulkan_xlib.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -112,6 +114,51 @@ void platform_window_destroy(struct se_window *window) {
     XUnmapWindow(state_ptr->display, window->platform_state->window);
     XDestroyWindow(state_ptr->display, window->platform_state->window);
     free(window->platform_state);
+}
+
+static const char *linux_required_extensions[] = {VK_KHR_SURFACE_EXTENSION_NAME,
+                                                  VK_KHR_XLIB_SURFACE_EXTENSION_NAME};
+static const u32 linux_required_extension_count =
+    sizeof(linux_required_extensions) / sizeof(*linux_required_extensions);
+
+void platform_get_required_extensions(u32 *extension_count, const char **required_extensions) {
+    if (extension_count != NULL) {
+        *extension_count = linux_required_extension_count;
+    }
+
+    if (required_extensions != NULL) {
+        for (u32 i = 0; i < linux_required_extension_count; i++) {
+            required_extensions[i] = linux_required_extensions[i];
+        }
+    }
+}
+
+b8 platform_surface_create(const struct se_window *window,
+                           VkInstance instance,
+                           VkSurfaceKHR *surface) {
+    VkXlibSurfaceCreateInfoKHR create_info = {
+        .sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR,
+        .dpy = state_ptr->display,
+        .window = window->platform_state->window,
+    };
+
+    if (!ASSERT(vkCreateXlibSurfaceKHR(instance, &create_info, NULL, surface) == VK_SUCCESS)) {
+        return false;
+    }
+
+    return true;
+}
+
+void platform_get_framebuffer_size(const struct se_window *window, VkExtent2D *extent) {
+    XGetGeometry(state_ptr->display,
+                 window->platform_state->window,
+                 NULL,
+                 NULL,
+                 NULL,
+                 &extent->width,
+                 &extent->height,
+                 NULL,
+                 NULL);
 }
 
 #endif // __linux__

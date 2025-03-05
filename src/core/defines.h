@@ -13,6 +13,8 @@
         abort();                                                                                   \
     } while (0)
 
+#define ARRAY_SIZE(arr) (sizeof((arr)) / sizeof(*(arr)))
+
 #if defined(__clang__) || defined(__GNUC__)
 #define STATIC_ASSERT _Static_assert
 #else
