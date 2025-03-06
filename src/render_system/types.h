@@ -34,6 +34,11 @@ struct swapchain {
 	VkImageView *image_views;
 };
 
+struct pipeline {
+	VkPipeline handle;
+	VkPipelineLayout layout;
+};
+
 struct render_system_state {
     struct instance instance;
     struct device device;
