@@ -3,7 +3,10 @@
 
 #include "types.h"
 
-b8 pipeline_create(const struct device *device, struct pipeline *pipeline);
+b8 pipeline_create(const struct device *device,
+				   const struct swapchain *swapchain,
+                   const struct renderpass *renderpass,
+                   struct pipeline *pipeline);
 void pipeline_destroy(const struct device *device, struct pipeline *pipeline);
 
 #endif // RENDER_PIPELINE_H

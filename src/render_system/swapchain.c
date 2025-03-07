@@ -140,6 +140,9 @@ b8 swapchain_create(const struct device *device,
         return false;
     }
 
+    swapchain->format = surface_format.format;
+    swapchain->extent = extent;
+
     vkGetSwapchainImagesKHR(device->handle, swapchain->handle, &swapchain->image_count, NULL);
     swapchain->images = calloc(swapchain->image_count, sizeof(VkImage));
     vkGetSwapchainImagesKHR(device->handle,
@@ -169,4 +172,44 @@ void swapchain_destroy(const struct device *device, struct swapchain *swapchain)
     free(swapchain->images);
     swapchain->images = NULL;
     swapchain->image_count = 0;
+}
+
+b8 swapchain_framebuffers_create(const struct device *device,
+                                 const struct renderpass *renderpass,
+                                 struct swapchain *swapchain) {
+    swapchain->framebuffers = calloc(swapchain->image_count, sizeof(VkFramebuffer));
+
+    for (u32 i = 0; i < swapchain->image_count; i++) {
+        VkImageView attachments[] = {
+            swapchain->image_views[i],
+        };
+
+        VkFramebufferCreateInfo framebuffer_info = {
+            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+            .renderPass = renderpass->handle,
+            .attachmentCount = 1,
+            .pAttachments = attachments,
+            .width = swapchain->extent.width,
+            .height = swapchain->extent.height,
+            .layers = 1,
+        };
+
+        if (!ASSERT(vkCreateFramebuffer(device->handle,
+                                        &framebuffer_info,
+                                        NULL,
+                                        &swapchain->framebuffers[i]) == VK_SUCCESS)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void swapchain_framebuffers_destroy(const struct device *device, struct swapchain *swapchain) {
+    for (u32 i = 0; i < swapchain->image_count; i++) {
+        vkDestroyFramebuffer(device->handle, swapchain->framebuffers[i], NULL);
+    }
+
+    free(swapchain->framebuffers);
+    swapchain->framebuffers = NULL;
 }

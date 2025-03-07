@@ -30,5 +30,10 @@ b8 swapchain_create(const struct device *device,
                     struct swapchain *swapchain);
 void swapchain_destroy(const struct device *device, struct swapchain *swapchain);
 
+b8 swapchain_framebuffers_create(const struct device *device, 
+                                 const struct renderpass *renderpass,
+								 struct swapchain *swapchain);
+void swapchain_framebuffers_destroy(const struct device *device, struct swapchain *swapchain);
+
 #endif // RENDER_SWAPCHAIN_H
 

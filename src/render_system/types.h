@@ -29,9 +29,16 @@ struct device {
 
 struct swapchain {
     VkSwapchainKHR handle;
-	u32 image_count;
 	VkImage *images;
 	VkImageView *image_views;
+	VkFramebuffer *framebuffers;
+	u32 image_count;
+	VkFormat format;
+	VkExtent2D extent;
+};
+
+struct renderpass {
+	VkRenderPass handle;
 };
 
 struct pipeline {
@@ -44,6 +51,7 @@ struct render_system_state {
     struct device device;
     VkSurfaceKHR surface;
     struct swapchain swapchain;
+	struct renderpass renderpass;
 };
 
 #endif // RENDER_TYPES_H

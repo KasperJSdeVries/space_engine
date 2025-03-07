@@ -2,6 +2,7 @@
 
 #include "core/assert.h"
 #include "core/defines.h"
+#include "render_system/types.h"
 #include "vulkan/vulkan_core.h"
 
 #include <stdio.h>
@@ -10,7 +11,10 @@ b8 shader_module_create(const struct device *device,
                         const char *file_path,
                         VkShaderModule *shader_module);
 
-b8 pipeline_create(const struct device *device, struct pipeline *pipeline) {
+b8 pipeline_create(const struct device *device,
+                   const struct swapchain *swapchain,
+                   const struct renderpass *renderpass,
+                   struct pipeline *pipeline) {
     VkShaderModule vert_shader_module;
     VkShaderModule frag_shader_module;
 
@@ -62,15 +66,15 @@ b8 pipeline_create(const struct device *device, struct pipeline *pipeline) {
     VkViewport viewport = {
         .x = 0.0f,
         .y = 0.0f,
-        .width = 1920.0f,
-        .height = 1080.0f,
+        .width = (f32)swapchain->extent.width,
+        .height = (f32)swapchain->extent.height,
         .minDepth = 0.0f,
         .maxDepth = 1.0f,
     };
 
     VkRect2D scissor = {
         .offset = {0, 0},
-        .extent = {1920, 1080},
+        .extent = swapchain->extent,
     };
 
     VkPipelineViewportStateCreateInfo viewport_state = {
@@ -129,6 +133,34 @@ b8 pipeline_create(const struct device *device, struct pipeline *pipeline) {
         return false;
     }
 
+    VkGraphicsPipelineCreateInfo pipeline_info = {
+        .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+        .stageCount = ARRAY_SIZE(shader_stages),
+        .pStages = shader_stages,
+        .pVertexInputState = &vertex_input_info,
+        .pInputAssemblyState = &input_assembly,
+        .pViewportState = &viewport_state,
+        .pRasterizationState = &rasterizer,
+        .pMultisampleState = &multisampling,
+        .pDepthStencilState = NULL,
+        .pColorBlendState = &color_blending,
+        .pDynamicState = &dynamic_state,
+        .layout = pipeline->layout,
+        .renderPass = renderpass->handle,
+        .subpass = 0,
+        .basePipelineHandle = VK_NULL_HANDLE,
+        .basePipelineIndex = -1,
+    };
+
+    if (!ASSERT(vkCreateGraphicsPipelines(device->handle,
+                                          NULL,
+                                          1,
+                                          &pipeline_info,
+                                          NULL,
+                                          &pipeline->handle) == VK_SUCCESS)) {
+        return false;
+    }
+
     vkDestroyShaderModule(device->handle, vert_shader_module, NULL);
     vkDestroyShaderModule(device->handle, frag_shader_module, NULL);
 
@@ -136,6 +168,8 @@ b8 pipeline_create(const struct device *device, struct pipeline *pipeline) {
 }
 
 void pipeline_destroy(const struct device *device, struct pipeline *pipeline) {
+    vkDestroyPipeline(device->handle, pipeline->handle, NULL);
+    pipeline->handle = VK_NULL_HANDLE;
     vkDestroyPipelineLayout(device->handle, pipeline->layout, NULL);
     pipeline->layout = VK_NULL_HANDLE;
 }
