@@ -1,5 +1,4 @@
 #include "renderpass.h"
-
 #include "core/assert.h"
 #include "render_system/types.h"
 #include "vulkan/vulkan_core.h"
@@ -29,12 +28,23 @@ b8 renderpass_create(const struct device *device,
         .pColorAttachments = &color_attachment_reference,
     };
 
+    VkSubpassDependency dependency = {
+        .srcSubpass = VK_SUBPASS_EXTERNAL,
+        .dstSubpass = 0,
+        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .srcAccessMask = 0,
+        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    };
+
     VkRenderPassCreateInfo render_pass_info = {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
         .attachmentCount = 1,
         .pAttachments = &color_attachment,
         .subpassCount = 1,
         .pSubpasses = &subpass,
+        .dependencyCount = 1,
+        .pDependencies = &dependency,
     };
 
     if (!ASSERT(vkCreateRenderPass(device->handle, &render_pass_info, NULL, &renderpass->handle) ==
@@ -47,4 +57,30 @@ b8 renderpass_create(const struct device *device,
 void renderpass_destroy(const struct device *device, struct renderpass *renderpass) {
     vkDestroyRenderPass(device->handle, renderpass->handle, NULL);
     renderpass->handle = VK_NULL_HANDLE;
+}
+
+void renderpass_begin(const struct renderpass *renderpass,
+                      const struct commandbuffer *commandbuffer,
+                      const struct swapchain *swapchain,
+                      u32 image_index) {
+    VkClearValue clear_color = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+
+    VkRenderPassBeginInfo renderpass_info = {
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+        .renderPass = renderpass->handle,
+        .framebuffer = swapchain->framebuffers[image_index],
+        .renderArea =
+            {
+                .offset = {0, 0},
+                .extent = swapchain->extent,
+            },
+        .clearValueCount = 1,
+        .pClearValues = &clear_color,
+    };
+
+    vkCmdBeginRenderPass(commandbuffer->handle, &renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
+}
+
+void renderpass_end(const struct commandbuffer *commandbuffer) {
+    vkCmdEndRenderPass(commandbuffer->handle);
 }

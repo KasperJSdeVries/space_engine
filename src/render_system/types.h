@@ -46,12 +46,25 @@ struct pipeline {
 	VkPipelineLayout layout;
 };
 
+struct commandpool {
+	VkCommandPool handle;
+};
+
+struct commandbuffer {
+	VkCommandBuffer handle;
+};
+
 struct render_system_state {
     struct instance instance;
     struct device device;
     VkSurfaceKHR surface;
     struct swapchain swapchain;
 	struct renderpass renderpass;
+	struct commandpool commandpool;
+	struct commandbuffer commandbuffer;
+	VkSemaphore image_available_semaphore;
+	VkSemaphore render_finished_semaphore;
+	VkFence in_flight_fence;
 };
 
 #endif // RENDER_TYPES_H

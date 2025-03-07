@@ -29,6 +29,10 @@ int main(void) {
         if (!platform_system_poll(platform_state)) {
             quit = true;
         }
+
+        if (!render_system_render_frame()) {
+            quit = true;
+        }
     }
 
     render_system_shutdown();
