@@ -5,11 +5,13 @@
 
 #include <vulkan/vulkan.h>
 
-#ifdef SE_DEBUG
+#if SE_DEBUG
 #define ENABLE_VALIDATION_LAYERS true
 #else
 #define ENABLE_VALIDATION_LAYERS false
 #endif
+
+#define MAX_FRAMES_IN_FLIGHT 3
 
 struct instance {
     VkInstance handle;
@@ -61,10 +63,13 @@ struct render_system_state {
     struct swapchain swapchain;
 	struct renderpass renderpass;
 	struct commandpool commandpool;
-	struct commandbuffer commandbuffer;
-	VkSemaphore image_available_semaphore;
-	VkSemaphore render_finished_semaphore;
-	VkFence in_flight_fence;
+	struct commandbuffer commandbuffers[MAX_FRAMES_IN_FLIGHT];
+	VkSemaphore image_available_semaphores[MAX_FRAMES_IN_FLIGHT];
+	VkSemaphore render_finished_semaphores[MAX_FRAMES_IN_FLIGHT];
+	VkFence in_flight_fences[MAX_FRAMES_IN_FLIGHT];
+    u32 image_index;
+	u32 current_frame;
+	b8 framebuffer_resized;
 };
 
 #endif // RENDER_TYPES_H

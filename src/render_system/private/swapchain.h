@@ -29,11 +29,15 @@ b8 swapchain_create(const struct device *device,
                     const struct se_window *window,
                     struct swapchain *swapchain);
 void swapchain_destroy(const struct device *device, struct swapchain *swapchain);
+b8 swapchain_recreate(const struct device *device,
+                      VkSurfaceKHR surface,
+                      const struct se_window *window,
+                      const struct renderpass *renderpass,
+                      struct swapchain *swapchain);
 
-b8 swapchain_framebuffers_create(const struct device *device, 
+b8 swapchain_framebuffers_create(const struct device *device,
                                  const struct renderpass *renderpass,
-								 struct swapchain *swapchain);
+                                 struct swapchain *swapchain);
 void swapchain_framebuffers_destroy(const struct device *device, struct swapchain *swapchain);
 
 #endif // RENDER_SWAPCHAIN_H
-

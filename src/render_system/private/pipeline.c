@@ -1,8 +1,10 @@
 #include "pipeline.h"
 
+#include "types.h"
+
 #include "core/assert.h"
 #include "core/defines.h"
-#include "render_system/types.h"
+
 #include "vulkan/vulkan_core.h"
 
 #include <stdio.h>

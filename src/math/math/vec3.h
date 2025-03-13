@@ -4,7 +4,6 @@
 #include "core/assert.h"
 #include "core/defines.h"
 
-
 typedef union {
     struct {
         f32 x, y, z;
@@ -18,8 +17,8 @@ typedef union {
     f32 raw[3];
 } vec3;
 
-#define vec3_format "[%f %f %f]"
-#define vec3_print(vec) (vec).x, (vec).y, (vec).z
+#define VEC3_FORMAT "[%f %f %f]"
+#define VEC3_PRINT(vec) (vec).x, (vec).y, (vec).z
 
 static inline vec3 vec3_add(vec3 a, vec3 b) {
     return (vec3){{

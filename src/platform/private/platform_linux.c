@@ -1,3 +1,5 @@
+#include "core/darray.h"
+#include "core/defines.h"
 #include "platform.h"
 #include "vulkan/vulkan_core.h"
 
@@ -13,8 +15,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+struct window_array {
+    struct se_window **items;
+    u64 count;
+    u64 capacity;
+};
+
 typedef struct se_platform_state {
     Display *display;
+    struct window_array windows;
     Atom wm_delete_window;
 } se_platform_state;
 
@@ -35,6 +44,7 @@ b8 platform_system_startup(size_t *memory_requirement, se_platform_state *state)
     }
 
     state_ptr = state;
+    memset(state_ptr, 0, sizeof(se_platform_state));
     state_ptr->display = XOpenDisplay(NULL);
 
     if (!ASSERT(state_ptr->display)) {
@@ -53,6 +63,20 @@ b8 platform_system_poll(struct se_platform_state *state) {
         switch (event.type) {
         case Expose:
             LOG_INFO("window expose");
+            break;
+
+        case ConfigureNotify:
+            LOG_INFO("Resizing in Xlib");
+            for (u64 j = 0; j < state_ptr->windows.count; j++) {
+                if (event.xconfigure.window ==
+                    state_ptr->windows.items[j]->platform_state->window) {
+                    struct se_window *window = state_ptr->windows.items[j];
+                    for (u64 k = 0; k < window->resize_callbacks.count; k++) {
+                        // xdd syntax
+                        window->resize_callbacks.items[k]();
+                    }
+                }
+            }
             break;
 
         case ClientMessage:
@@ -80,6 +104,7 @@ b8 platform_window_create(struct se_window_config *config, struct se_window *win
         return false;
     }
 
+    memset(window, 0, sizeof(struct se_window));
     window->platform_state = malloc(sizeof(struct se_window_platform_state));
 
     window->platform_state->window =
@@ -106,6 +131,8 @@ b8 platform_window_create(struct se_window_config *config, struct se_window *win
     XMapWindow(state_ptr->display, window->platform_state->window);
     XFlush(state_ptr->display);
 
+    darray_append(&state_ptr->windows, window);
+
     return true;
 }
 
@@ -114,6 +141,11 @@ void platform_window_destroy(struct se_window *window) {
     XUnmapWindow(state_ptr->display, window->platform_state->window);
     XDestroyWindow(state_ptr->display, window->platform_state->window);
     free(window->platform_state);
+}
+
+void platform_window_register_resize_callback(struct se_window *window,
+                                              window_resized_callback_t callback) {
+    darray_append(&window->resize_callbacks, callback);
 }
 
 static const char *linux_required_extensions[] = {VK_KHR_SURFACE_EXTENSION_NAME,

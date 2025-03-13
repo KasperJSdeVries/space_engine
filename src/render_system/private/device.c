@@ -1,11 +1,12 @@
 #include "device.h"
 
+#include "instance.h"
+#include "swapchain.h"
+
 #include "core/assert.h"
 #include "core/defines.h"
 #include "core/logging.h"
-#include "render_system/instance.h"
 
-#include "render_system/swapchain.h"
 #include "vulkan/vulkan_core.h"
 
 #include <string.h>
@@ -126,7 +127,7 @@ struct queue_family_indices find_queue_families(VkPhysicalDevice device, VkSurfa
     VkQueueFamilyProperties queue_families[queue_family_count];
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families);
 
-    LOG_INFO("               Graphics | Compute | Transfer | Present");
+    LOG_INFO("                 Graphics | Compute | Transfer | Present");
     for (u32 i = 0; i < queue_family_count; i++) {
         if (!(indices.supported_families & QUEUE_FAMILY_SUPPORT_GRAPHICS_BIT) &&
             (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {

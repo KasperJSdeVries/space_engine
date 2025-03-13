@@ -1,6 +1,9 @@
 #include "renderpass.h"
+
+#include "types.h"
+
 #include "core/assert.h"
-#include "render_system/types.h"
+
 #include "vulkan/vulkan_core.h"
 
 b8 renderpass_create(const struct device *device,

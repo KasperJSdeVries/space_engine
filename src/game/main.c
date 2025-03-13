@@ -1,3 +1,5 @@
+#include "game.h"
+
 #include "core/assert.h"
 #include "core/defines.h"
 #include "platform/platform.h"
@@ -25,12 +27,16 @@ int main(void) {
 
     ASSERT(render_system_startup(&window));
 
+    struct world world;
+
+    world_setup(&world);
+
     for (b8 quit = false; quit == false;) {
         if (!platform_system_poll(platform_state)) {
             quit = true;
         }
 
-        if (!render_system_render_frame()) {
+        if (!render_system_render_frame(&window)) {
             quit = true;
         }
     }

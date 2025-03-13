@@ -1,7 +1,9 @@
 #include "instance.h"
+
 #include "core/assert.h"
 #include "platform/platform.h"
 
+#if SE_DEBUG
 static const char *instance_extensions[] = {VK_EXT_DEBUG_UTILS_EXTENSION_NAME};
 static const u32 instance_extension_count =
     sizeof(instance_extensions) / sizeof(*instance_extensions);
@@ -11,6 +13,7 @@ debug_messenger_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
                          VkDebugUtilsMessageTypeFlagsEXT message_type,
                          const VkDebugUtilsMessengerCallbackDataEXT *callback_data,
                          void *user_data);
+#endif
 
 b8 instance_create(struct instance *instance) {
     VkApplicationInfo app_info = {
@@ -19,7 +22,7 @@ b8 instance_create(struct instance *instance) {
         .applicationVersion = VK_MAKE_API_VERSION(0, 0, 1, 0),
         .pEngineName = "space engine",
         .engineVersion = VK_MAKE_API_VERSION(0, 0, 1, 0),
-        .apiVersion = VK_API_VERSION_1_4,
+        .apiVersion = VK_API_VERSION_1_3,
     };
 
 #if ENABLE_VALIDATION_LAYERS

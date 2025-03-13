@@ -5,7 +5,6 @@
 # Build Artifacts
 build/
 build.ninja
-game
 sb
 compile_commands.json
 *.spv

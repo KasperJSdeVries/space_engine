@@ -1,11 +1,13 @@
 #include "swapchain.h"
 
+#include "device.h"
+#include "image.h"
+#include "types.h"
+
 #include "core/assert.h"
 #include "core/defines.h"
 #include "platform/platform.h"
-#include "render_system/device.h"
-#include "render_system/image.h"
-#include "render_system/types.h"
+
 #include "vulkan/vulkan_core.h"
 
 #include <stdlib.h>
@@ -172,6 +174,24 @@ void swapchain_destroy(const struct device *device, struct swapchain *swapchain)
     free(swapchain->images);
     swapchain->images = NULL;
     swapchain->image_count = 0;
+}
+
+b8 swapchain_recreate(const struct device *device,
+                      VkSurfaceKHR surface,
+                      const struct se_window *window,
+                      const struct renderpass *renderpass,
+                      struct swapchain *swapchain) {
+    vkDeviceWaitIdle(device->handle);
+
+    swapchain_framebuffers_destroy(device, swapchain);
+    swapchain_destroy(device, swapchain);
+    if (!swapchain_create(device, surface, window, swapchain)) {
+        return false;
+    }
+    if (!swapchain_framebuffers_create(device, renderpass, swapchain)) {
+        return false;
+    }
+    return true;
 }
 
 b8 swapchain_framebuffers_create(const struct device *device,
