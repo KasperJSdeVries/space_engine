@@ -15,7 +15,7 @@ find_package(Vulkan REQUIRED)
 
 add_compile_definitions("SE_DEBUG=$<CONFIG:Debug>")
 
-file(GLOB MODULES "modules/*")
+file(GLOB MODULES CONFIGURE_DEPENDS "modules/*")
 foreach(module ${MODULES})
 	add_subdirectory(${module})
 endforeach(module)
