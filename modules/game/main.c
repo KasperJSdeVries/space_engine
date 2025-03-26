@@ -5,9 +5,6 @@
 #include "platform/platform.h"
 #include "render_system/render.h"
 #include "render_system/types.h"
-#ifdef _WIN32
-#include <Windows.h>
-#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,32 +55,3 @@ int main(void) {
     platform_system_shutdown(platform_state);
     free(platform_state);
 }
-
-#ifdef _WIN32
-
-int windows_main(void) {
-    MSG msg;
-    for (;;) {
-        if (GetMessageA(&msg, NULL, 0, 0) == 0) {
-            break;
-        }
-
-        switch (msg.message) {
-        case WM_KEYDOWN:
-            switch (msg.wParam) {
-            case VK_ESCAPE:
-                PostQuitMessage(0);
-                continue;
-            }
-            break;
-        }
-
-        DispatchMessageA(&msg);
-    }
-
-    DestroyWindow(windowHandle);
-    UnregisterClassA("GameClass", hInstance);
-
-    return 0;
-}
-#endif
