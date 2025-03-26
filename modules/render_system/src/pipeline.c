@@ -1,5 +1,6 @@
 #include "pipeline.h"
 
+#include "math/vec3.h"
 #include "types.h"
 
 #include "core/assert.h"
@@ -13,17 +14,18 @@ b8 shader_module_create(const struct device *device,
                         const char *file_path,
                         VkShaderModule *shader_module);
 
-b8 pipeline_create(const struct device *device,
-                   const struct swapchain *swapchain,
-                   const struct renderpass *renderpass,
-                   struct pipeline *pipeline) {
+b8 graphics_pipeline_create(const struct renderer *renderer,
+                            struct graphics_pipeline_config config,
+                            struct pipeline *pipeline) {
     VkShaderModule vert_shader_module;
     VkShaderModule frag_shader_module;
 
-    if (!shader_module_create(device, "shaders/triangle.vert.spv", &vert_shader_module)) {
+    if (!shader_module_create(&renderer->device, config.vertex_shader_path, &vert_shader_module)) {
         return false;
     }
-    if (!shader_module_create(device, "shaders/triangle.frag.spv", &frag_shader_module)) {
+    if (!shader_module_create(&renderer->device,
+                              config.fragment_shader_path,
+                              &frag_shader_module)) {
         return false;
     }
 
@@ -53,10 +55,29 @@ b8 pipeline_create(const struct device *device,
         .pDynamicStates = dynamic_states,
     };
 
+    VkVertexInputBindingDescription binding_descriptions[] = {
+        {
+            .binding = 0,
+            .stride = config.vertex_size,
+            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+        },
+    };
+
+    VkVertexInputAttributeDescription attribute_descriptions[] = {
+        {
+            .binding = 0,
+            .location = 0,
+            .format = VK_FORMAT_R32G32B32_SFLOAT,
+            .offset = 0,
+        },
+    };
+
     VkPipelineVertexInputStateCreateInfo vertex_input_info = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        .vertexBindingDescriptionCount = 0,
-        .vertexAttributeDescriptionCount = 0,
+        .vertexBindingDescriptionCount = ARRAY_SIZE(binding_descriptions),
+        .pVertexBindingDescriptions = binding_descriptions,
+        .vertexAttributeDescriptionCount = ARRAY_SIZE(attribute_descriptions),
+        .pVertexAttributeDescriptions = attribute_descriptions,
     };
 
     VkPipelineInputAssemblyStateCreateInfo input_assembly = {
@@ -68,15 +89,15 @@ b8 pipeline_create(const struct device *device,
     VkViewport viewport = {
         .x = 0.0f,
         .y = 0.0f,
-        .width = (f32)swapchain->extent.width,
-        .height = (f32)swapchain->extent.height,
+        .width = (f32)renderer->swapchain.extent.width,
+        .height = (f32)renderer->swapchain.extent.height,
         .minDepth = 0.0f,
         .maxDepth = 1.0f,
     };
 
     VkRect2D scissor = {
         .offset = {0, 0},
-        .extent = swapchain->extent,
+        .extent = renderer->swapchain.extent,
     };
 
     VkPipelineViewportStateCreateInfo viewport_state = {
@@ -124,11 +145,33 @@ b8 pipeline_create(const struct device *device,
         .pAttachments = &color_blend_attachment,
     };
 
-    VkPipelineLayoutCreateInfo pipeline_layout_info = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+    VkDescriptorSetLayoutBinding uboLayoutBinding = {
+        .binding = 0,
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = 1,
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
     };
 
-    if (!ASSERT(vkCreatePipelineLayout(device->handle,
+    VkDescriptorSetLayoutCreateInfo descriptor_set_layout_info = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .bindingCount = 1,
+        .pBindings = &uboLayoutBinding,
+    };
+
+    if (!ASSERT(vkCreateDescriptorSetLayout(renderer->device.handle,
+                                            &descriptor_set_layout_info,
+                                            NULL,
+                                            &pipeline->descriptor_set_layout) == VK_SUCCESS)) {
+        return false;
+    }
+
+    VkPipelineLayoutCreateInfo pipeline_layout_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .setLayoutCount = 1,
+        .pSetLayouts = &pipeline->descriptor_set_layout,
+    };
+
+    if (!ASSERT(vkCreatePipelineLayout(renderer->device.handle,
                                        &pipeline_layout_info,
                                        NULL,
                                        &pipeline->layout) == VK_SUCCESS)) {
@@ -148,13 +191,13 @@ b8 pipeline_create(const struct device *device,
         .pColorBlendState = &color_blending,
         .pDynamicState = &dynamic_state,
         .layout = pipeline->layout,
-        .renderPass = renderpass->handle,
+        .renderPass = renderer->renderpass.handle,
         .subpass = 0,
         .basePipelineHandle = VK_NULL_HANDLE,
         .basePipelineIndex = -1,
     };
 
-    if (!ASSERT(vkCreateGraphicsPipelines(device->handle,
+    if (!ASSERT(vkCreateGraphicsPipelines(renderer->device.handle,
                                           NULL,
                                           1,
                                           &pipeline_info,
@@ -163,8 +206,65 @@ b8 pipeline_create(const struct device *device,
         return false;
     }
 
-    vkDestroyShaderModule(device->handle, vert_shader_module, NULL);
-    vkDestroyShaderModule(device->handle, frag_shader_module, NULL);
+    vkDestroyShaderModule(renderer->device.handle, vert_shader_module, NULL);
+    vkDestroyShaderModule(renderer->device.handle, frag_shader_module, NULL);
+
+    VkDescriptorPoolSize pool_size = {
+        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = MAX_FRAMES_IN_FLIGHT,
+    };
+
+    VkDescriptorPoolCreateInfo pool_info = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .poolSizeCount = 1,
+        .pPoolSizes = &pool_size,
+        .maxSets = MAX_FRAMES_IN_FLIGHT,
+    };
+
+    if (!ASSERT(vkCreateDescriptorPool(renderer->device.handle,
+                                       &pool_info,
+                                       NULL,
+                                       &pipeline->descriptor_pool) == VK_SUCCESS)) {
+        return false;
+    }
+
+    VkDescriptorSetLayout layouts[MAX_FRAMES_IN_FLIGHT];
+    for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        layouts[i] = pipeline->descriptor_set_layout;
+    }
+
+    VkDescriptorSetAllocateInfo descriptor_set_allocate_info = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .descriptorPool = pipeline->descriptor_pool,
+        .descriptorSetCount = MAX_FRAMES_IN_FLIGHT,
+        .pSetLayouts = layouts,
+    };
+
+    if (!ASSERT(vkAllocateDescriptorSets(renderer->device.handle,
+                                         &descriptor_set_allocate_info,
+                                         pipeline->descriptor_sets) == VK_SUCCESS)) {
+        return false;
+    }
+
+    for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        VkDescriptorBufferInfo buffer_info = {
+            .buffer = renderer->ubo_buffers[i].handle,
+            .offset = 0,
+            .range = sizeof(struct uniform_buffer_object),
+        };
+
+        VkWriteDescriptorSet descriptor_write = {
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = pipeline->descriptor_sets[i],
+            .dstBinding = 0,
+            .dstArrayElement = 0,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .descriptorCount = 1,
+            .pBufferInfo = &buffer_info,
+        };
+
+        vkUpdateDescriptorSets(renderer->device.handle, 1, &descriptor_write, 0, NULL);
+    }
 
     return true;
 }
@@ -174,6 +274,25 @@ void pipeline_destroy(const struct device *device, struct pipeline *pipeline) {
     pipeline->handle = VK_NULL_HANDLE;
     vkDestroyPipelineLayout(device->handle, pipeline->layout, NULL);
     pipeline->layout = VK_NULL_HANDLE;
+    vkDestroyDescriptorPool(device->handle, pipeline->descriptor_pool, NULL);
+    pipeline->descriptor_pool = VK_NULL_HANDLE;
+    vkDestroyDescriptorSetLayout(device->handle, pipeline->descriptor_set_layout, NULL);
+    pipeline->descriptor_set_layout = VK_NULL_HANDLE;
+}
+
+void pipeline_bind(const struct renderer *renderer, const struct pipeline *pipeline) {
+    vkCmdBindDescriptorSets(renderer->commandbuffers[renderer->current_frame].handle,
+                            VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            pipeline->layout,
+                            0,
+                            1,
+                            &pipeline->descriptor_sets[renderer->current_frame],
+                            0,
+                            NULL);
+
+    vkCmdBindPipeline(renderer->commandbuffers[renderer->current_frame].handle,
+                      VK_PIPELINE_BIND_POINT_GRAPHICS,
+                      pipeline->handle);
 }
 
 b8 shader_module_create(const struct device *device,

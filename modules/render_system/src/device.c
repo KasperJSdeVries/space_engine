@@ -7,8 +7,9 @@
 #include "core/defines.h"
 #include "core/logging.h"
 
-#include "vulkan/vulkan_core.h"
+#include <vulkan/vulkan_core.h>
 
+#include <stdio.h>
 #include <string.h>
 
 static const char *device_extensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
@@ -81,7 +82,7 @@ b8 device_create(const struct instance *instance, VkSurfaceKHR surface, struct d
         queue_create_infos[i].pQueuePriorities = queue_priorities;
     }
 
-    VkPhysicalDeviceFeatures device_features;
+    VkPhysicalDeviceFeatures device_features = {0};
 
     VkDeviceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -96,8 +97,8 @@ b8 device_create(const struct instance *instance, VkSurfaceKHR surface, struct d
 #endif
     };
 
-    if (!ASSERT(vkCreateDevice(device->physical_device, &create_info, NULL, &device->handle) ==
-                VK_SUCCESS)) {
+    VkResult result = vkCreateDevice(device->physical_device, &create_info, NULL, &device->handle);
+    if (!ASSERT(result == VK_SUCCESS)) {
         return false;
     }
 

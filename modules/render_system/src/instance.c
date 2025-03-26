@@ -3,7 +3,7 @@
 #include "core/assert.h"
 #include "platform/platform.h"
 
-#if SE_DEBUG
+#if ENABLE_VALIDATION_LAYERS
 static const char *instance_extensions[] = {VK_EXT_DEBUG_UTILS_EXTENSION_NAME};
 static const u32 instance_extension_count =
     sizeof(instance_extensions) / sizeof(*instance_extensions);

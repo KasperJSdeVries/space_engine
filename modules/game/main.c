@@ -4,6 +4,7 @@
 #include "core/defines.h"
 #include "platform/platform.h"
 #include "render_system/render.h"
+#include "render_system/types.h"
 #ifdef _WIN32
 #include <Windows.h>
 #endif
@@ -25,23 +26,32 @@ int main(void) {
     struct se_window window;
     platform_window_create(&window_config, &window);
 
-    ASSERT(render_system_startup(&window));
+    struct renderer renderer = {0};
+    ASSERT(render_system_startup(&window, &renderer));
 
     struct world world;
 
-    world_setup(&world);
+    world_setup(&world, &renderer);
 
     for (b8 quit = false; quit == false;) {
         if (!platform_system_poll(platform_state)) {
             quit = true;
         }
 
-        if (!render_system_render_frame(&window)) {
+        if (!render_system_start_frame(&window, &renderer)) {
+            quit = true;
+        }
+
+        world_update(&world, &renderer, 0.0f);
+
+        if (!render_system_end_frame(&window, &renderer)) {
             quit = true;
         }
     }
 
-    render_system_shutdown();
+    world_cleanup(&world, &renderer);
+
+    render_system_shutdown(&renderer);
 
     platform_window_destroy(&window);
 

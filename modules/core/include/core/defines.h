@@ -15,6 +15,8 @@
 
 #define ARRAY_SIZE(arr) (sizeof((arr)) / sizeof(*(arr)))
 
+#define UNLIKELY(expr) __builtin_expect(!!(expr), 0)
+
 #if defined(__clang__) || defined(__GNUC__)
 #define STATIC_ASSERT _Static_assert
 #else

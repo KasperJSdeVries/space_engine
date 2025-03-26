@@ -1,9 +1,10 @@
 #include "render.h"
 
+#include "buffer.h"
 #include "commandbuffer.h"
 #include "device.h"
 #include "instance.h"
-#include "pipeline.h"
+#include "math/mat4.h"
 #include "renderpass.h"
 #include "swapchain.h"
 #include "types.h"
@@ -12,47 +13,50 @@
 #include "core/defines.h"
 
 #include "vulkan/vulkan_core.h"
+#include <string.h>
 
-static struct render_system_state state = {0};
-static struct pipeline triangle_pipeline = {0};
+static struct renderer *state_ptr = NULL;
 
 void on_window_resize(void);
+static void update_uniform_buffer(void *uniform_buffer, VkExtent2D extent);
 
-b8 render_system_startup(struct se_window *window) {
-    if (!instance_create(&state.instance)) {
+b8 render_system_startup(struct se_window *window, struct renderer *renderer) {
+    state_ptr = renderer;
+
+    if (!instance_create(&renderer->instance)) {
         return false;
     }
 
-    if (!platform_surface_create(window, state.instance.handle, &state.surface)) {
+    if (!platform_surface_create(window, renderer->instance.handle, &renderer->surface)) {
         return false;
     }
 
-    if (!device_create(&state.instance, state.surface, &state.device)) {
+    if (!device_create(&renderer->instance, renderer->surface, &renderer->device)) {
         return false;
     }
 
-    if (!swapchain_create(&state.device, state.surface, window, &state.swapchain)) {
+    if (!swapchain_create(&renderer->device, renderer->surface, window, &renderer->swapchain)) {
         return false;
     }
 
-    if (!renderpass_create(&state.device, &state.swapchain, &state.renderpass)) {
+    if (!renderpass_create(&renderer->device, &renderer->swapchain, &renderer->renderpass)) {
         return false;
     }
 
-    if (!pipeline_create(&state.device, &state.swapchain, &state.renderpass, &triangle_pipeline)) {
+    if (!swapchain_framebuffers_create(&renderer->device,
+                                       &renderer->renderpass,
+                                       &renderer->swapchain)) {
         return false;
     }
 
-    if (!swapchain_framebuffers_create(&state.device, &state.renderpass, &state.swapchain)) {
-        return false;
-    }
-
-    if (!commandpool_create(&state.device, state.surface, &state.commandpool)) {
+    if (!commandpool_create(&renderer->device, renderer->surface, &renderer->commandpool)) {
         return false;
     }
 
     for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        if (!commandbuffer_create(&state.device, &state.commandpool, &state.commandbuffers[i])) {
+        if (!commandbuffer_create(&renderer->device,
+                                  &renderer->commandpool,
+                                  &renderer->commandbuffers[i])) {
             return false;
         }
     }
@@ -67,111 +71,128 @@ b8 render_system_startup(struct se_window *window) {
     };
 
     for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        if (!ASSERT(vkCreateSemaphore(state.device.handle,
+        if (!ASSERT(vkCreateSemaphore(renderer->device.handle,
                                       &semaphore_info,
                                       NULL,
-                                      &state.image_available_semaphores[i]) == VK_SUCCESS) ||
-            !ASSERT(vkCreateSemaphore(state.device.handle,
+                                      &renderer->image_available_semaphores[i]) == VK_SUCCESS) ||
+            !ASSERT(vkCreateSemaphore(renderer->device.handle,
                                       &semaphore_info,
                                       NULL,
-                                      &state.render_finished_semaphores[i]) == VK_SUCCESS) ||
-            !ASSERT(
-                vkCreateFence(state.device.handle, &fence_info, NULL, &state.in_flight_fences[i]) ==
-                VK_SUCCESS)) {
+                                      &renderer->render_finished_semaphores[i]) == VK_SUCCESS) ||
+            !ASSERT(vkCreateFence(renderer->device.handle,
+                                  &fence_info,
+                                  NULL,
+                                  &renderer->in_flight_fences[i]) == VK_SUCCESS)) {
             return false;
         }
     }
 
     platform_window_register_resize_callback(window, on_window_resize);
 
+    for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        render_buffer_create(&renderer->device,
+                             RENDERBUFFER_USAGE_UNIFORM,
+                             sizeof(struct uniform_buffer_object),
+                             &renderer->ubo_buffers[i]);
+        renderer->ubo_buffers_mapped[i] =
+            render_buffer_map_memory(&renderer->device, &renderer->ubo_buffers[i]);
+    }
+
     return true;
 }
 
-void render_system_shutdown(void) {
-    vkDeviceWaitIdle(state.device.handle);
+void render_system_shutdown(struct renderer *renderer) {
+    vkDeviceWaitIdle(renderer->device.handle);
+
     for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        vkDestroyFence(state.device.handle, state.in_flight_fences[i], NULL);
-        vkDestroySemaphore(state.device.handle, state.render_finished_semaphores[i], NULL);
-        vkDestroySemaphore(state.device.handle, state.image_available_semaphores[i], NULL);
+        render_buffer_destroy(&renderer->device, &renderer->ubo_buffers[i]);
     }
-    commandpool_destroy(&state.device, &state.commandpool);
-    swapchain_framebuffers_destroy(&state.device, &state.swapchain);
-    pipeline_destroy(&state.device, &triangle_pipeline);
-    renderpass_destroy(&state.device, &state.renderpass);
-    swapchain_destroy(&state.device, &state.swapchain);
-    device_destroy(&state.device);
-    vkDestroySurfaceKHR(state.instance.handle, state.surface, NULL);
-    instance_destroy(&state.instance);
+
+    for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vkDestroyFence(renderer->device.handle, renderer->in_flight_fences[i], NULL);
+        vkDestroySemaphore(renderer->device.handle, renderer->render_finished_semaphores[i], NULL);
+        vkDestroySemaphore(renderer->device.handle, renderer->image_available_semaphores[i], NULL);
+    }
+    commandpool_destroy(&renderer->device, &renderer->commandpool);
+    swapchain_framebuffers_destroy(&renderer->device, &renderer->swapchain);
+    renderpass_destroy(&renderer->device, &renderer->renderpass);
+    swapchain_destroy(&renderer->device, &renderer->swapchain);
+    device_destroy(&renderer->device);
+    vkDestroySurfaceKHR(renderer->instance.handle, renderer->surface, NULL);
+    instance_destroy(&renderer->instance);
 }
 
-b8 render_system_render_frame(const struct se_window *window) {
-    vkWaitForFences(state.device.handle,
+b8 render_system_start_frame(const struct se_window *window, struct renderer *renderer) {
+    vkWaitForFences(renderer->device.handle,
                     1,
-                    &state.in_flight_fences[state.current_frame],
+                    &renderer->in_flight_fences[renderer->current_frame],
                     VK_TRUE,
                     UINT64_MAX);
 
-    VkResult result = vkAcquireNextImageKHR(state.device.handle,
-                                            state.swapchain.handle,
-                                            UINT64_MAX,
-                                            state.image_available_semaphores[state.current_frame],
-                                            VK_NULL_HANDLE,
-                                            &state.image_index);
+    VkResult result =
+        vkAcquireNextImageKHR(renderer->device.handle,
+                              renderer->swapchain.handle,
+                              UINT64_MAX,
+                              renderer->image_available_semaphores[renderer->current_frame],
+                              VK_NULL_HANDLE,
+                              &renderer->image_index);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        swapchain_recreate(&state.device,
-                           state.surface,
+        swapchain_recreate(&renderer->device,
+                           renderer->surface,
                            window,
-                           &state.renderpass,
-                           &state.swapchain);
+                           &renderer->renderpass,
+                           &renderer->swapchain);
         return true;
     } else if (!ASSERT(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR)) {
         return false;
     }
 
-    vkResetFences(state.device.handle, 1, &state.in_flight_fences[state.current_frame]);
+    vkResetFences(renderer->device.handle, 1, &renderer->in_flight_fences[renderer->current_frame]);
 
-    vkResetCommandBuffer(state.commandbuffers[state.current_frame].handle, 0);
-    if (!commandbuffer_recording_start(&state.commandbuffers[state.current_frame])) {
+    vkResetCommandBuffer(renderer->commandbuffers[renderer->current_frame].handle, 0);
+    if (!commandbuffer_recording_start(&renderer->commandbuffers[renderer->current_frame])) {
         return false;
     }
 
-    renderpass_begin(&state.renderpass,
-                     &state.commandbuffers[state.current_frame],
-                     &state.swapchain,
-                     state.image_index);
-
-    vkCmdBindPipeline(state.commandbuffers[state.current_frame].handle,
-                      VK_PIPELINE_BIND_POINT_GRAPHICS,
-                      triangle_pipeline.handle);
+    renderpass_begin(&renderer->renderpass,
+                     &renderer->commandbuffers[renderer->current_frame],
+                     &renderer->swapchain,
+                     renderer->image_index);
 
     VkViewport viewport = {
         .x = 0.0f,
         .y = 0.0f,
-        .width = state.swapchain.extent.width,
-        .height = state.swapchain.extent.height,
+        .width = renderer->swapchain.extent.width,
+        .height = renderer->swapchain.extent.height,
         .minDepth = 0.0f,
         .maxDepth = 1.0f,
     };
-    vkCmdSetViewport(state.commandbuffers[state.current_frame].handle, 0, 1, &viewport);
+    vkCmdSetViewport(renderer->commandbuffers[renderer->current_frame].handle, 0, 1, &viewport);
 
     VkRect2D scissor = {
         .offset = {0, 0},
-        .extent = state.swapchain.extent,
+        .extent = renderer->swapchain.extent,
     };
-    vkCmdSetScissor(state.commandbuffers[state.current_frame].handle, 0, 1, &scissor);
+    vkCmdSetScissor(renderer->commandbuffers[renderer->current_frame].handle, 0, 1, &scissor);
 
-    vkCmdDraw(state.commandbuffers[state.current_frame].handle, 3, 1, 0, 0);
+    update_uniform_buffer(renderer->ubo_buffers_mapped[renderer->current_frame],
+                          renderer->swapchain.extent);
 
-    renderpass_end(&state.commandbuffers[state.current_frame]);
+    return true;
+}
 
-    if (!commandbuffer_recording_end(&state.commandbuffers[state.current_frame])) {
+b8 render_system_end_frame(const struct se_window *window, struct renderer *renderer) {
+    renderpass_end(&renderer->commandbuffers[renderer->current_frame]);
+
+    if (!commandbuffer_recording_end(&renderer->commandbuffers[renderer->current_frame])) {
         return false;
     }
 
-    VkSemaphore wait_semaphores[] = {state.image_available_semaphores[state.current_frame]};
+    VkSemaphore wait_semaphores[] = {renderer->image_available_semaphores[renderer->current_frame]};
     VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    VkSemaphore signal_semaphores[] = {state.render_finished_semaphores[state.current_frame]};
+    VkSemaphore signal_semaphores[] = {
+        renderer->render_finished_semaphores[renderer->current_frame]};
 
     VkSubmitInfo submit_info = {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -179,19 +200,19 @@ b8 render_system_render_frame(const struct se_window *window) {
         .pWaitSemaphores = wait_semaphores,
         .pWaitDstStageMask = wait_stages,
         .commandBufferCount = 1,
-        .pCommandBuffers = &state.commandbuffers[state.current_frame].handle,
+        .pCommandBuffers = &renderer->commandbuffers[renderer->current_frame].handle,
         .signalSemaphoreCount = ARRAY_SIZE(signal_semaphores),
         .pSignalSemaphores = signal_semaphores,
     };
 
-    if (!ASSERT(vkQueueSubmit(state.device.graphics_queue,
+    if (!ASSERT(vkQueueSubmit(renderer->device.graphics_queue,
                               1,
                               &submit_info,
-                              state.in_flight_fences[state.current_frame]) == VK_SUCCESS)) {
+                              renderer->in_flight_fences[renderer->current_frame]) == VK_SUCCESS)) {
         return false;
     }
 
-    VkSwapchainKHR swapchains[] = {state.swapchain.handle};
+    VkSwapchainKHR swapchains[] = {renderer->swapchain.handle};
 
     VkPresentInfoKHR present_info = {
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
@@ -199,30 +220,40 @@ b8 render_system_render_frame(const struct se_window *window) {
         .pWaitSemaphores = signal_semaphores,
         .swapchainCount = ARRAY_SIZE(swapchains),
         .pSwapchains = swapchains,
-        .pImageIndices = &state.image_index,
+        .pImageIndices = &renderer->image_index,
         .pResults = NULL,
     };
 
-    result = vkQueuePresentKHR(state.device.present_queue, &present_info);
+    VkResult result = vkQueuePresentKHR(renderer->device.present_queue, &present_info);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR ||
-        state.framebuffer_resized) {
-        state.framebuffer_resized = false;
-        swapchain_recreate(&state.device,
-                           state.surface,
+        renderer->framebuffer_resized) {
+        renderer->framebuffer_resized = false;
+        swapchain_recreate(&renderer->device,
+                           renderer->surface,
                            window,
-                           &state.renderpass,
-                           &state.swapchain);
+                           &renderer->renderpass,
+                           &renderer->swapchain);
     } else if (!ASSERT(result == VK_SUCCESS)) {
         return false;
     }
 
-    state.current_frame = (state.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+    renderer->current_frame = (renderer->current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 
     return true;
 }
 
+static void update_uniform_buffer(void *uniform_buffer, VkExtent2D extent) {
+    struct uniform_buffer_object ubo = {
+        .model = rotate(MAT4_IDENTITY, DEG2RAD(0.0f), (vec3){{0.0f, 1.0f, 0.0f}}),
+        .view = lookat((vec3){{2.0, 2.0, 2.0}}, (vec3){{0.0, 0.0, 0.0}}, (vec3){{0.0, 1.0, 0.0}}),
+        .projection = perspective(DEG2RAD(45.0f), extent.width / (f32)extent.height, 0.1f, 1000.0f),
+    };
+
+    memcpy(uniform_buffer, &ubo, sizeof(ubo));
+}
+
 void on_window_resize(void) {
     LOG_INFO("Resize Callback :)");
-    state.framebuffer_resized = true;
+    state_ptr->framebuffer_resized = true;
 }
