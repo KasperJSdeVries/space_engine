@@ -38,6 +38,14 @@ static inline vec2 vec2_mul(vec2 a, vec2 b) {
     }};
 }
 
+static inline vec2 vec2_div(vec2 a, vec2 b) {
+    ASSERT(b.x != 0.0f && b.y != 0.0f);
+    return (vec2){{
+        a.x / b.x,
+        a.y / b.y,
+    }};
+}
+
 static inline vec2 vec2_scale(vec2 vec, f32 s) {
     return (vec2){{
         vec.x * s,
@@ -45,11 +53,11 @@ static inline vec2 vec2_scale(vec2 vec, f32 s) {
     }};
 }
 
-static inline vec2 vec2_div(vec2 a, vec2 b) {
-    ASSERT(b.x != 0.0f && b.y != 0.0f);
+static inline vec2 vec2_divs(vec2 a, f32 s) {
+    ASSERT(s != 0.0f);
     return (vec2){{
-        a.x / b.x,
-        a.y / b.y,
+        a.x / s,
+        a.y / s,
     }};
 }
 

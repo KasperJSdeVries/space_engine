@@ -1,11 +1,11 @@
-#include "core/darray.h"
-#include "core/defines.h"
 #include "platform.h"
-#include "vulkan/vulkan_core.h"
 
 #ifdef __linux__
 #include "core/assert.h"
+#include "core/darray.h"
+#include "core/defines.h"
 #include "core/logging.h"
+#include "vulkan/vulkan_core.h"
 
 #include <X11/X.h>
 #include <X11/Xlib.h>

@@ -5,7 +5,8 @@
 u32 find_memory_type(VkPhysicalDevice device, u32 type_filter, VkMemoryPropertyFlags properties);
 
 b8 render_buffer_create(const struct device *device,
-                        renderbuffer_usage usage,
+                        VkBufferUsageFlags usage,
+                        VkMemoryPropertyFlags properties,
                         u64 size,
                         struct renderbuffer *buffer) {
     buffer->size = size;
@@ -14,18 +15,7 @@ b8 render_buffer_create(const struct device *device,
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .size = size,
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-    };
-
-    switch (usage) {
-    case RENDERBUFFER_USAGE_VERTEX:
-        create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        break;
-    case RENDERBUFFER_USAGE_INDEX:
-        create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-        break;
-    case RENDERBUFFER_USAGE_UNIFORM:
-        create_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-        break;
+        .usage = usage,
     };
 
     if (!ASSERT(vkCreateBuffer(device->handle, &create_info, NULL, &buffer->handle) ==
@@ -41,8 +31,7 @@ b8 render_buffer_create(const struct device *device,
         .allocationSize = memory_requirements.size,
         .memoryTypeIndex = find_memory_type(device->physical_device,
                                             memory_requirements.memoryTypeBits,
-                                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                                VK_MEMORY_PROPERTY_HOST_COHERENT_BIT),
+                                            properties),
     };
 
     if (!ASSERT(vkAllocateMemory(device->handle, &allocate_info, NULL, &buffer->memory) ==
@@ -60,10 +49,48 @@ void render_buffer_destroy(const struct device *device, struct renderbuffer *buf
     vkFreeMemory(device->handle, buffer->memory, NULL);
 }
 
-void *render_buffer_map_memory(const struct device *device, const struct renderbuffer *buffer) {
-    void *ptr;
-    vkMapMemory(device->handle, buffer->memory, 0, buffer->size, 0, &ptr);
-    return ptr;
+void render_buffer_copy(const struct renderer *renderer,
+                        const struct renderbuffer *src_buffer,
+                        const struct renderbuffer *dst_buffer) {
+    VkCommandBufferAllocateInfo alloc_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandPool = renderer->commandpool.handle,
+        .commandBufferCount = 1,
+    };
+
+    VkCommandBuffer command_buffer;
+    vkAllocateCommandBuffers(renderer->device.handle, &alloc_info, &command_buffer);
+
+    VkCommandBufferBeginInfo begin_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+    };
+
+    vkBeginCommandBuffer(command_buffer, &begin_info);
+
+    VkBufferCopy copy_region = {
+        .size = src_buffer->size,
+    };
+
+    vkCmdCopyBuffer(command_buffer, src_buffer->handle, dst_buffer->handle, 1, &copy_region);
+
+    vkEndCommandBuffer(command_buffer);
+
+    VkSubmitInfo submit_info = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &command_buffer,
+    };
+
+    vkQueueSubmit(renderer->device.graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
+    vkQueueWaitIdle(renderer->device.graphics_queue);
+}
+
+void render_buffer_map_memory(const struct device *device,
+                              const struct renderbuffer *buffer,
+                              void **ptr) {
+    vkMapMemory(device->handle, buffer->memory, 0, buffer->size, 0, ptr);
 }
 
 void render_buffer_unmap_memory(const struct device *device, const struct renderbuffer *buffer) {

@@ -17,6 +17,10 @@ typedef union {
     f32 raw[16];
 } mat4;
 
+#define MAT4_FORMAT "\n" VEC4_FORMAT "\n" VEC4_FORMAT "\n" VEC4_FORMAT "\n" VEC4_FORMAT "\n"
+#define MAT4_PRINT(m)                                                                              \
+    VEC4_PRINT((m).col[0]), VEC4_PRINT((m).col[1]), VEC4_PRINT((m).col[2]), VEC4_PRINT((m).col[3])
+
 #define MAT4_ZERO (mat4){0}
 #define MAT4_IDENTITY (mat4){.m00 = 1.0f, .m11 = 1.0f, .m22 = 1.0f, .m33 = 1.0f}
 
@@ -80,25 +84,25 @@ static inline mat4 lookat(vec3 eye, vec3 center, vec3 up) {
     vec3 f = vec3_sub(center, eye);
     f = vec3_normalize(f);
 
-    vec3 s = vec3_normalize(vec3_cross(up, f));
-    vec3 u = vec3_cross(f, s);
+    vec3 s = vec3_normalize(vec3_cross(f, up));
+    vec3 u = vec3_cross(s, f);
 
     return (mat4){
         .m00 = s.x,
         .m01 = u.x,
-        .m02 = f.x,
+        .m02 = -f.x,
 
         .m10 = s.y,
         .m11 = u.y,
-        .m12 = f.y,
+        .m12 = -f.y,
 
         .m20 = s.z,
         .m21 = u.z,
-        .m22 = f.z,
+        .m22 = -f.z,
 
         .m30 = -vec3_dot(s, eye),
         .m31 = -vec3_dot(u, eye),
-        .m32 = -vec3_dot(f, eye),
+        .m32 = vec3_dot(f, eye),
 
         .m33 = 1.0f,
     };
@@ -111,9 +115,9 @@ static inline mat4 perspective(f32 fovy, f32 aspect, f32 near_z, f32 far_z) {
     return (mat4){
         .m00 = f / aspect,
         .m11 = f,
-        .m22 = -far_z * fn,
-        .m23 = 1.0f,
-        .m32 = near_z * far_z * fn,
+        .m22 = (near_z + far_z) * fn,
+        .m23 = -1.0f,
+        .m32 = 2.0f * near_z * far_z * fn,
     };
 }
 

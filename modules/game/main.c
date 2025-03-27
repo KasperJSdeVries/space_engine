@@ -46,6 +46,8 @@ int main(void) {
         }
     }
 
+    render_system_end_main_loop(&renderer);
+
     world_cleanup(&world, &renderer);
 
     render_system_shutdown(&renderer);

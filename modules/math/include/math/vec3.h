@@ -5,6 +5,7 @@
 #include "core/defines.h"
 
 #include <math.h>
+#include <stdio.h>
 
 typedef union {
     struct {
@@ -74,7 +75,7 @@ static inline vec3 vec3_cross(vec3 a, vec3 b) {
     return (vec3){
         .x = a.y * b.z - a.z * b.y,
         .y = a.z * b.x - a.x * b.z,
-        .z = a.x / b.y - a.y * b.x,
+        .z = a.x * b.y - a.y * b.x,
     };
 }
 
@@ -89,7 +90,7 @@ static inline vec3 vec3_normalize(vec3 v) {
         return VEC3_ZERO;
     }
 
-    return vec3_scale(v, norm);
+    return vec3_scale(v, 1.0f / norm);
 }
 
 #endif // SE_VEC3_H

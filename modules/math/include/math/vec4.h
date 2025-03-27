@@ -25,7 +25,7 @@ typedef union {
     f32 raw[4];
 } versors;
 
-#define VEC4_FORMAT "[%f %f %f %f]"
+#define VEC4_FORMAT "[%5.1f %5.1f %5.1f %5.1f]"
 #define VEC4_PRINT(vec) (vec).x, (vec).y, (vec).z, (vec).w
 
 static inline vec4 vec4_from_vec3(vec3 v, f32 f) { return (vec4){{v.x, v.y, v.z, f}}; }

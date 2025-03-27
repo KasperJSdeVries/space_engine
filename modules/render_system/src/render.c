@@ -1,10 +1,8 @@
 #include "render.h"
 
-#include "buffer.h"
 #include "commandbuffer.h"
 #include "device.h"
 #include "instance.h"
-#include "math/mat4.h"
 #include "renderpass.h"
 #include "swapchain.h"
 #include "types.h"
@@ -18,7 +16,6 @@
 static struct renderer *state_ptr = NULL;
 
 void on_window_resize(void);
-static void update_uniform_buffer(void *uniform_buffer, VkExtent2D extent);
 
 b8 render_system_startup(struct se_window *window, struct renderer *renderer) {
     state_ptr = renderer;
@@ -89,24 +86,11 @@ b8 render_system_startup(struct se_window *window, struct renderer *renderer) {
 
     platform_window_register_resize_callback(window, on_window_resize);
 
-    for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        render_buffer_create(&renderer->device,
-                             RENDERBUFFER_USAGE_UNIFORM,
-                             sizeof(struct uniform_buffer_object),
-                             &renderer->ubo_buffers[i]);
-        renderer->ubo_buffers_mapped[i] =
-            render_buffer_map_memory(&renderer->device, &renderer->ubo_buffers[i]);
-    }
-
     return true;
 }
 
 void render_system_shutdown(struct renderer *renderer) {
     vkDeviceWaitIdle(renderer->device.handle);
-
-    for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        render_buffer_destroy(&renderer->device, &renderer->ubo_buffers[i]);
-    }
 
     for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroyFence(renderer->device.handle, renderer->in_flight_fences[i], NULL);
@@ -176,9 +160,6 @@ b8 render_system_start_frame(const struct se_window *window, struct renderer *re
     };
     vkCmdSetScissor(renderer->commandbuffers[renderer->current_frame].handle, 0, 1, &scissor);
 
-    update_uniform_buffer(renderer->ubo_buffers_mapped[renderer->current_frame],
-                          renderer->swapchain.extent);
-
     return true;
 }
 
@@ -243,14 +224,8 @@ b8 render_system_end_frame(const struct se_window *window, struct renderer *rend
     return true;
 }
 
-static void update_uniform_buffer(void *uniform_buffer, VkExtent2D extent) {
-    struct uniform_buffer_object ubo = {
-        .model = rotate(MAT4_IDENTITY, DEG2RAD(0.0f), (vec3){{0.0f, 1.0f, 0.0f}}),
-        .view = lookat((vec3){{2.0, 2.0, 2.0}}, (vec3){{0.0, 0.0, 0.0}}, (vec3){{0.0, 1.0, 0.0}}),
-        .projection = perspective(DEG2RAD(45.0f), extent.width / (f32)extent.height, 0.1f, 1000.0f),
-    };
-
-    memcpy(uniform_buffer, &ubo, sizeof(ubo));
+void render_system_end_main_loop(const struct renderer *renderer) {
+    vkDeviceWaitIdle(renderer->device.handle);
 }
 
 void on_window_resize(void) {
