@@ -397,7 +397,9 @@ b8 shader_module_create(const struct device *device,
     rewind(fp);
 
     char buffer[size];
-    fread(buffer, sizeof(char), size, fp);
+    if (fread(buffer, sizeof(char), size, fp) != size) {
+        return false;
+    }
 
     VkShaderModuleCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,

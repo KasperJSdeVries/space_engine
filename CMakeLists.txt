@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.19)
 project(space_engine C)
 
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_FLAGS "-Wall -Wextra -Wpedantic -ggdb")
+set(CMAKE_C_FLAGS "-Wall -Wextra -Wpedantic -Werror -ggdb")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 

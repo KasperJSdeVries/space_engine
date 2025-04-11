@@ -1,5 +1,6 @@
 #include "game.h"
 
+#include "core/defines.h"
 #include "core/logging.h"
 #include "math/vec2.h"
 #include "math/vec3.h"
@@ -8,7 +9,6 @@
 #include "render_system/types.h"
 #include "vulkan/vulkan_core.h"
 
-#include <stdio.h>
 #include <string.h>
 
 static void generate_ground_plane(const struct renderer *renderer,
@@ -24,6 +24,7 @@ void world_setup(struct world *world, const struct renderer *renderer) {
 }
 
 void world_update(struct world *world, const struct renderer *renderer, f32 delta_time) {
+    UNUSED(delta_time);
     ground_plane_render(renderer, &world->ground_plane);
 }
 
@@ -55,7 +56,7 @@ static void generate_ground_plane(const struct renderer *renderer,
                                    vec3_scale(axis_b, (percent.y - 0.5f) * 2.0f));
             vertices[i] = vec3_add(start_point, vec3_scale(vertex, side_length));
 
-            if (x != resolution - 1 & y != resolution - 1) {
+            if (x != resolution - 1 && y != resolution - 1) {
                 indices[current_vertex] = i;
                 indices[current_vertex + 1] = i + resolution + 1;
                 indices[current_vertex + 2] = i + resolution;
@@ -100,7 +101,7 @@ static void generate_ground_plane(const struct renderer *renderer,
                               VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                              sizeof(vertices),
+                              sizeof(indices),
                               &index_staging_buffer)) {
         return;
     }
