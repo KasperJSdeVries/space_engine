@@ -42,10 +42,12 @@
           ikos
           nil
           neocmakelsp
+          nodejs
           kcachegrind
           renderdoc
           vulkan-tools
           vscode-langservers-extracted
+          yaml-language-server
         ];
       };
 

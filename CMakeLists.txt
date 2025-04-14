@@ -8,13 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR})
 
-add_subdirectory(shaders)
-
-find_package(X11 REQUIRED)
-find_package(Vulkan REQUIRED)
-
-file(GLOB MODULES CONFIGURE_DEPENDS "modules/*")
-foreach(module ${MODULES})
-	add_subdirectory(${module})
-endforeach(module)
+add_subdirectory(test)
+add_subdirectory(dist)
+add_subdirectory(src)
 
