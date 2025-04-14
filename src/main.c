@@ -85,6 +85,9 @@ int main(void) {
 
     renderer_shutdown(&renderer);
 
+    // HACK: display needs to be closed before instance is destroyed to prevent
+    // segfault
+    // (https://github.com/KhronosGroup/Vulkan-LoaderAndValidationLayers/issues/1894#issuecomment-309832783)
     XCloseDisplay(display);
 
     instance_destroy(&renderer.instance);
