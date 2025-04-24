@@ -24,43 +24,6 @@ int main(void) {
     world_setup(&world, &renderer);
 
     for (b8 quit = false; quit == false;) {
-        /*XEvent event;*/
-        /**/
-        /*i32 events_queued = XPending(display);*/
-        /*for (i32 i = 0; i < events_queued; i++) {*/
-        /*    XNextEvent(display, &event);*/
-        /*    switch (event.type) {*/
-        /*    case Expose:*/
-        /*        LOG_INFO("window expose");*/
-        /*        break;*/
-        /**/
-        /*    case ConfigureNotify:*/
-        /*        LOG_INFO("Resizing in Xlib");*/
-        /*        for (u64 j = 0; j < state_ptr->windows.count; j++) {*/
-        /*            if (event.xconfigure.window ==*/
-        /*                state_ptr->windows.items[j]->platform_state->window)
-         * {*/
-        /*                struct se_window *window =
-         * state_ptr->windows.items[j];*/
-        /*                for (u64 k = 0; k < window->resize_callbacks.count;*/
-        /*                     k++) {*/
-        /*                    // xdd syntax*/
-        /*                    window->resize_callbacks.items[k]();*/
-        /*                }*/
-        /*            }*/
-        /*        }*/
-        /*        break;*/
-        /**/
-        /*    case ClientMessage:*/
-        /*        if (memcmp(event.xclient.data.b,*/
-        /*                   &state_ptr->wm_delete_window,*/
-        /*                   sizeof(state_ptr->wm_delete_window)) == 0) {*/
-        /*            quit = true;*/
-        /*        }*/
-        /*        break;*/
-        /*    }*/
-        /*}*/
-
         se_result result;
         if ((result = renderer_start_frame(&renderer)) ==
             SE_RESULT_WINDOW_CLOSED) {

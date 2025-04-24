@@ -20,7 +20,8 @@ static void ground_plane_render(const struct renderer *renderer,
                                 struct ground_plane *ground_plane);
 
 void world_setup(struct world *world, const struct renderer *renderer) {
-    generate_ground_plane(renderer, 10.0f, 50, &world->ground_plane);
+
+    generate_ground_plane(renderer, 1000.0f, 100, &world->ground_plane);
 }
 
 void world_update(struct world *world,
