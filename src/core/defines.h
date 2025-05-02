@@ -62,11 +62,6 @@ typedef int b32;
 STATIC_ASSERT(sizeof(b8) == 1, "Expected b8 to be 1 byte.");
 STATIC_ASSERT(sizeof(b32) == 4, "Expected b32 to be 4 byte.");
 
-#define PI 3.14159265358979323846
-
-#define DEG2RAD(deg) ((typeof(deg))((deg) * PI / 180.0))
-#define RAD2DEG(rad) ((typeof(rad))((rad) * 180.0 / PI))
-
 #define CLAMP(val, min, max)                                                   \
     (((val) < (min)) ? (min) : (((val) > (max)) ? (max) : (val)))
 

@@ -2,7 +2,9 @@
 #define RENDER_TYPES_H
 
 #include "core/defines.h"
-#include "math/mat4.h"
+
+#define CGLM_OMIT_NS_FROM_STRUCT_API
+#include <cglm/struct.h>
 
 #include <X11/X.h>
 #include <X11/Xlib.h>
@@ -13,9 +15,9 @@
 #define MAX_FRAMES_IN_FLIGHT 3
 
 struct uniform_buffer_object {
-    mat4 model;
-    mat4 view;
-    mat4 projection;
+    mat4s model;
+    mat4s view;
+    mat4s projection;
 };
 
 struct instance {

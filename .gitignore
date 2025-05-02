@@ -1,6 +1,7 @@
 .cache/
 .direnv/
 .pre-commit-config.yaml
+result
 
 # Build Artifacts
 build/

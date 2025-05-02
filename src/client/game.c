@@ -1,8 +1,7 @@
 #include "game.h"
 
+#include "cglm/struct/mat4.h"
 #include "core/defines.h"
-#include "math/vec2.h"
-#include "math/vec3.h"
 #include "renderer/buffer.h"
 #include "renderer/pipeline.h"
 #include "renderer/types.h"
@@ -39,23 +38,23 @@ static void generate_ground_plane(const struct renderer *renderer,
                                   f32 side_length,
                                   u32 resolution,
                                   struct ground_plane *ground_plane) {
-    vec3 start_point = {{-side_length / 2.0f, 0, -side_length / 2.0f}};
+    vec3s start_point = {{-side_length / 2.0f, 0, -side_length / 2.0f}};
     u32 vertex_count = resolution * resolution;
     u32 index_count = (resolution - 1) * (resolution - 1) * 6;
     ground_plane->index_count = index_count;
 
-    vec3 vertices[vertex_count];
+    vec3s vertices[vertex_count];
     u32 indices[index_count];
 
     u32 current_vertex = 0;
     for (u32 y = 0; y < resolution; y++) {
         for (u32 x = 0; x < resolution; x++) {
             u32 i = x + y * resolution;
-            vec2 percent = vec2_divs((vec2){{x, y}}, resolution - 1);
-            vec3 local_up = {{0.0f, -1.0f, 0.0f}};
-            vec3 axis_a = {{local_up.y, local_up.z, local_up.x}};
-            vec3 axis_b = vec3_cross(local_up, axis_a);
-            vec3 vertex =
+            vec2s percent = vec2_divs((vec2s){{x, y}}, resolution - 1);
+            vec3s local_up = {{0.0f, -1.0f, 0.0f}};
+            vec3s axis_a = {{local_up.y, local_up.z, local_up.x}};
+            vec3s axis_b = vec3_cross(local_up, axis_a);
+            vec3s vertex =
                 vec3_add(vec3_scale(axis_a, (percent.x - 0.5f) * 2.0f),
                          vec3_scale(axis_b, (percent.y - 0.5f) * 2.0f));
             vertices[i] =
@@ -164,16 +163,18 @@ static void ground_plane_render(const struct renderer *renderer,
                                 struct ground_plane *ground_plane) {
 
     struct uniform_buffer_object ubo = {
-        .model =
-            rotate(MAT4_IDENTITY, DEG2RAD(0.0f), (vec3){{0.0f, 0.0f, 1.0f}}),
-        .view = lookat((vec3){{5.0, 5.0, 5.0}},
-                       (vec3){{0.0, 0.0, 0.0}},
-                       (vec3){{0.0, -1.0, 0.0}}),
-        .projection = perspective(DEG2RAD(45.0f),
-                                  renderer->swapchain.extent.width /
-                                      (f32)renderer->swapchain.extent.height,
-                                  0.1f,
-                                  1000.0f),
+        .model = glms_rotate(mat4_identity(),
+                             glm_rad(0.0f),
+                             (vec3s){{0.0f, 0.0f, 1.0f}}),
+        .view = glms_lookat((vec3s){{5.0, 5.0, 5.0}},
+                            (vec3s){{0.0, 0.0, 0.0}},
+                            (vec3s){{0.0, -1.0, 0.0}}),
+        .projection =
+            glms_perspective(glm_rad(45.0f),
+                             renderer->swapchain.extent.width /
+                                 (f32)renderer->swapchain.extent.height,
+                             0.1f,
+                             1000.0f),
     };
 
     memcpy(ground_plane->pipeline.uniform_buffer_mapped, &ubo, sizeof(ubo));

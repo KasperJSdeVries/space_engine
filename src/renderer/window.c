@@ -1,5 +1,6 @@
 #include "window.h"
 
+#include "core/assert.h"
 #include "core/result.h"
 #include "types.h"
 #include "vulkan/vulkan_xlib.h"

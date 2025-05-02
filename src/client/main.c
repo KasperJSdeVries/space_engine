@@ -1,5 +1,5 @@
+#include "client/box.h"
 #include "core/result.h"
-#include "game.h"
 
 #include "core/assert.h"
 #include "core/defines.h"
@@ -19,9 +19,13 @@ int main(void) {
     struct renderer renderer = {0};
     ASSERT(renderer_startup(display, &renderer) == SE_RESULT_OK);
 
-    struct world world;
+    // struct world world;
 
-    world_setup(&world, &renderer);
+    // world_setup(&world, &renderer);
+
+    struct box box = box_new(&renderer);
+
+    f32 time = 0.0f;
 
     for (b8 quit = false; quit == false;) {
         se_result result;
@@ -34,17 +38,27 @@ int main(void) {
             quit = true;
         }
 
-        world_update(&world, &renderer, 0.0f);
+        box_set_position(
+            &box,
+            (vec3s){{sinf(time * 0.5) * 5, cosf(time * 0.8), box.position.z}});
+        box_set_scale(&box, vec3_scale(vec3_one(), sinf(time)));
+        box_set_rotation(&box, (vec3s){{time * 0.2, time, time * 1.4}});
+
+        box_render(&renderer, &box);
+        // world_update(&world, &renderer, 0.0f);
 
         if (renderer_end_frame(&renderer) != SE_RESULT_OK) {
             LOG_ERROR("failed to end frame");
             quit = true;
         }
+
+        time += 0.0001;
     }
 
     renderer_end_main_loop(&renderer);
 
-    world_cleanup(&world, &renderer);
+    box_destroy(&renderer, &box);
+    // world_cleanup(&world, &renderer);
 
     renderer_shutdown(&renderer);
 

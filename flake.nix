@@ -22,6 +22,7 @@
       ];
 
       buildInputs = with pkgs; [
+        cglm
         shaderc
         vulkan-extension-layer
         vulkan-headers
@@ -33,6 +34,12 @@
       VK_LAYER_PATH = "${pkgs.vulkan-validation-layers}/share/vulkan/explicit_layer.d";
 
     in {
+      packages.default = pkgs.stdenv.mkDerivation {
+        name = "space-engine";
+        inherit nativeBuildInputs buildInputs VK_LAYER_PATH;
+        src = ./.;
+      };
+
       devShells.default = pkgs.mkShell {
         inherit nativeBuildInputs buildInputs VK_LAYER_PATH;
         packages = with pkgs; [

@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.19)
 project(space_engine C)
 
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_FLAGS "-Wall -Wextra -Wpedantic -Werror -ggdb")
+message(STATUS "Compiling for zen 5 architecture")
+set(CMAKE_C_FLAGS "-Wall -Wextra -Wpedantic -Werror -ggdb -march=znver5")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
