@@ -2,8 +2,6 @@
 
 #include "types.h"
 
-#include "core/assert.h"
-
 #include "vulkan/vulkan_core.h"
 
 b8 renderpass_create(const struct device *device,
@@ -50,14 +48,17 @@ b8 renderpass_create(const struct device *device,
         .pDependencies = &dependency,
     };
 
-    if (!ASSERT(vkCreateRenderPass(device->handle, &render_pass_info, NULL, &renderpass->handle) ==
-                VK_SUCCESS)) {
+    if (vkCreateRenderPass(device->handle,
+                           &render_pass_info,
+                           NULL,
+                           &renderpass->handle) != VK_SUCCESS) {
         return false;
     }
     return true;
 }
 
-void renderpass_destroy(const struct device *device, struct renderpass *renderpass) {
+void renderpass_destroy(const struct device *device,
+                        struct renderpass *renderpass) {
     vkDestroyRenderPass(device->handle, renderpass->handle, NULL);
     renderpass->handle = VK_NULL_HANDLE;
 }
@@ -81,7 +82,9 @@ void renderpass_begin(const struct renderpass *renderpass,
         .pClearValues = &clear_color,
     };
 
-    vkCmdBeginRenderPass(commandbuffer->handle, &renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(commandbuffer->handle,
+                         &renderpass_info,
+                         VK_SUBPASS_CONTENTS_INLINE);
 }
 
 void renderpass_end(const struct commandbuffer *commandbuffer) {

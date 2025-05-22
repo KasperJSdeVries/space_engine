@@ -1,7 +1,7 @@
 #ifndef CORE_RESULT_H
 #define CORE_RESULT_H
 
-#include "logging.h"
+#include "core/assert.h"
 
 #define ENUMERATE_RESULTS                                                      \
     __ENUMERATE_RESULT(OK, "Ok")                                               \
@@ -24,7 +24,7 @@ case SE_RESULT_##name:                                                         \
         ENUMERATE_RESULTS
 #undef __ENUMERATE_RESULT
     }
-    UNREACHABLE("");
+    ASSERT_UNREACHABLE();
 }
 
 static inline char *se_result_get_formatted_name(se_result result) {
@@ -35,7 +35,7 @@ case SE_RESULT_##name:                                                         \
         ENUMERATE_RESULTS
 #undef __ENUMERATE_RESULT
     }
-    UNREACHABLE("");
+    ASSERT_UNREACHABLE();
 }
 
 #endif // CORE_RESULT_H

@@ -31,7 +31,8 @@ b8 image_view_create(const struct device *device,
             },
     };
 
-    if (!ASSERT(vkCreateImageView(device->handle, &create_info, NULL, image_view) == VK_SUCCESS)) {
+    if (vkCreateImageView(device->handle, &create_info, NULL, image_view) !=
+        VK_SUCCESS) {
         return false;
     }
     return true;

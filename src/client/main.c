@@ -1,8 +1,8 @@
 #include "client/box.h"
-#include "core/result.h"
-
 #include "core/assert.h"
 #include "core/defines.h"
+#include "core/logging.h"
+#include "core/result.h"
 #include "renderer/instance.h"
 #include "renderer/renderer.h"
 #include "renderer/types.h"
@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 int main(void) {
     Display *display = XOpenDisplay(NULL);
@@ -25,9 +26,17 @@ int main(void) {
 
     struct box box = box_new(&renderer);
 
-    f32 time = 0.0f;
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    f64 time = (f64)ts.tv_sec + (f64)ts.tv_nsec * 0.000000001;
 
     for (b8 quit = false; quit == false;) {
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        f64 new_time = (f64)ts.tv_sec + (f64)ts.tv_nsec * 0.000000001;
+        f64 delta_time = new_time - time;
+        time = new_time;
+        UNUSED(delta_time);
+
         se_result result;
         if ((result = renderer_start_frame(&renderer)) ==
             SE_RESULT_WINDOW_CLOSED) {
@@ -51,8 +60,6 @@ int main(void) {
             LOG_ERROR("failed to end frame");
             quit = true;
         }
-
-        time += 0.0001;
     }
 
     renderer_end_main_loop(&renderer);

@@ -1,42 +1,48 @@
 #include "logging.h"
+#include "core/assert.h"
 
 #include <stdarg.h>
 #include <stdio.h>
 
-void LOG(LogLevel level, char *message, ...) {
+void _log_output(log_level level, char *message, ...) {
+    const char *level_strings[] =
+        {"[FATAL]", "[ERROR]", "[WARN]", "[INFO]", "[DEBUG]", "[TRACE]"};
+    const char *color_strings[] =
+        {"0;41", "1;31", "1;33", "1;32", "1;34", "1;37"};
+
     va_list ap;
     va_start(ap, message);
 
-    char *formatted_message;
-    if (vasprintf(&formatted_message, message, ap) == -1) {
+    char *out_message;
+    if (vasprintf(&out_message, message, ap) == -1) {
         fprintf(stderr,
-                "\x1B[31m[ERROR]: Unable to format error string: \"%s\".\x1B[0m\n",
-                message);
+                "\033[0;41m[FATAL] failed to format _log_output\033[0m\n");
         return;
-    }
+    };
 
-    char *color_string = "\x1B[31m";
-    char *level_string = "ERROR";
-    char *reset_string = "\x1B[0m";
+    b8 is_error = (level == LOG_LEVEL_ERROR || level == LOG_LEVEL_FATAL);
+    FILE *console_handle = is_error ? stderr : stdout;
 
-    switch (level) {
-    case LOG_LEVEL_INFO:
-        color_string = "\x1B[36m";
-        level_string = "INFO";
-        break;
-    case LOG_LEVEL_WARN:
-        color_string = "\x1B[33m";
-        level_string = "WARN";
-        break;
-    case LOG_LEVEL_ERROR:
-        color_string = "\x1B[31m";
-        level_string = "ERROR";
-        break;
-    }
+    fprintf(console_handle,
+            "\033[%sm%s %s\033[0m\n",
 
-    fprintf(stderr, "%s[%s]: %s%s\n", color_string, level_string, formatted_message, reset_string);
+            color_strings[level],
+            level_strings[level],
+            out_message);
 
-    free(formatted_message);
+    free(out_message);
 
     va_end(ap);
+}
+
+void report_assertion_failure(const char *expression,
+                              const char *message,
+                              const char *file,
+                              i32 line) {
+    _log_output(LOG_LEVEL_FATAL,
+                "Assertion Failure at (%s:%d): %s, message: %s",
+                file,
+                line,
+                expression,
+                message);
 }

@@ -19,10 +19,10 @@ b8 commandpool_create(const struct device *device,
         .queueFamilyIndex = queue_family_indices.graphics_family,
     };
 
-    if (!ASSERT(vkCreateCommandPool(device->handle,
-                                    &pool_info,
-                                    NULL,
-                                    &commandpool->handle) == VK_SUCCESS)) {
+    if (vkCreateCommandPool(device->handle,
+                            &pool_info,
+                            NULL,
+                            &commandpool->handle) != VK_SUCCESS) {
         return false;
     }
 
@@ -45,10 +45,9 @@ b8 commandbuffer_create(const struct device *device,
         .commandBufferCount = 1,
     };
 
-    if (!ASSERT(vkAllocateCommandBuffers(device->handle,
-                                         &allocate_info,
-                                         &commandbuffer->handle) ==
-                VK_SUCCESS)) {
+    if (vkAllocateCommandBuffers(device->handle,
+                                 &allocate_info,
+                                 &commandbuffer->handle) != VK_SUCCESS) {
         return false;
     }
 
@@ -60,8 +59,8 @@ b8 commandbuffer_recording_start(const struct commandbuffer *commandbuffer) {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
     };
 
-    if (!ASSERT(vkBeginCommandBuffer(commandbuffer->handle, &begin_info) ==
-                VK_SUCCESS)) {
+    if (vkBeginCommandBuffer(commandbuffer->handle, &begin_info) !=
+        VK_SUCCESS) {
         return false;
     }
 
@@ -69,7 +68,7 @@ b8 commandbuffer_recording_start(const struct commandbuffer *commandbuffer) {
 }
 
 b8 commandbuffer_recording_end(const struct commandbuffer *commandbuffer) {
-    if (!ASSERT(vkEndCommandBuffer(commandbuffer->handle) == VK_SUCCESS)) {
+    if (vkEndCommandBuffer(commandbuffer->handle) != VK_SUCCESS) {
         return false;
     }
 

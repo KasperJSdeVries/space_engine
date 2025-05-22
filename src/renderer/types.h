@@ -1,7 +1,9 @@
 #ifndef RENDER_TYPES_H
 #define RENDER_TYPES_H
 
+#include "core/darray.h"
 #include "core/defines.h"
+#include "vulkan/vulkan_core.h"
 
 #define CGLM_OMIT_NS_FROM_STRUCT_API
 #include <cglm/struct.h>
@@ -66,41 +68,23 @@ struct renderpass {
     VkRenderPass handle;
 };
 
-struct vertex_input_binding_descriptions {
-    VkVertexInputBindingDescription *items;
-    u64 count;
-    u64 capacity;
-};
-
-struct vertex_input_attribute_descriptions {
-    VkVertexInputAttributeDescription *items;
-    u64 count;
-    u64 capacity;
-};
-
-struct push_constant_ranges {
-    VkPushConstantRange *items;
-    u64 count;
-    u64 capacity;
-};
-
-struct pipeline_builder {
+typedef struct {
     const struct renderer *renderer;
 
     VkShaderModule vertex_shader_module;
     VkShaderModule fragment_shader_module;
     VkPipelineShaderStageCreateInfo shader_stages[2];
 
-    struct vertex_input_binding_descriptions vertex_input_bindings;
-    struct vertex_input_attribute_descriptions vertex_input_attributes;
+    darray(VkVertexInputBindingDescription) vertex_input_bindings;
+    darray(VkVertexInputAttributeDescription) vertex_input_attributes;
 
     u64 ubo_size;
     VkCullModeFlags cull_mode;
     VkPrimitiveTopology topology;
     b8 enable_alpha_blending;
 
-    struct push_constant_ranges push_constant_ranges;
-};
+    darray(VkPushConstantRange) push_constant_ranges;
+} pipeline_builder;
 
 struct pipeline {
     VkPipeline handle;

@@ -1,13 +1,11 @@
 #include "pipeline.h"
 
 #include "buffer.h"
+#include "core/logging.h"
 #include "types.h"
 
-#include "core/assert.h"
 #include "core/darray.h"
 #include "core/defines.h"
-
-#include "vulkan/vulkan_core.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -16,22 +14,24 @@ b8 shader_module_create(const struct device *device,
                         const char *file_path,
                         VkShaderModule *shader_module);
 
-struct pipeline_builder pipeline_builder_new(const struct renderer *renderer) {
-    struct pipeline_builder builder = {
+pipeline_builder pipeline_builder_new(const struct renderer *renderer) {
+    return (pipeline_builder){
         .renderer = renderer,
-        .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+        .vertex_input_bindings = darray_new(VkVertexInputBindingDescription),
+        .vertex_input_attributes =
+            darray_new(VkVertexInputAttributeDescription),
         .cull_mode = VK_CULL_MODE_BACK_BIT,
+        .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+        .push_constant_ranges = darray_new(VkPushConstantRange),
     };
-
-    return builder;
 }
 
-void pipeline_builder_set_shaders(struct pipeline_builder *builder,
+void pipeline_builder_set_shaders(pipeline_builder *builder,
                                   const char *vertex_shader_path,
                                   const char *fragment_shader_path) {
-    if (!ASSERT(shader_module_create(&builder->renderer->device,
-                                     vertex_shader_path,
-                                     &builder->vertex_shader_module))) {
+    if (!shader_module_create(&builder->renderer->device,
+                              vertex_shader_path,
+                              &builder->vertex_shader_module)) {
         return;
     }
 
@@ -44,9 +44,9 @@ void pipeline_builder_set_shaders(struct pipeline_builder *builder,
 
     builder->shader_stages[0] = vertex_shader_stage_info;
 
-    if (!ASSERT(shader_module_create(&builder->renderer->device,
-                                     fragment_shader_path,
-                                     &builder->fragment_shader_module))) {
+    if (!shader_module_create(&builder->renderer->device,
+                              fragment_shader_path,
+                              &builder->fragment_shader_module)) {
         return;
     }
 
@@ -60,7 +60,7 @@ void pipeline_builder_set_shaders(struct pipeline_builder *builder,
     builder->shader_stages[1] = fragment_shader_stage_info;
 }
 
-void pipeline_builder_add_input_binding(struct pipeline_builder *builder,
+void pipeline_builder_add_input_binding(pipeline_builder *builder,
                                         u32 binding,
                                         u64 stride,
                                         VkVertexInputRate input_rate) {
@@ -70,10 +70,10 @@ void pipeline_builder_add_input_binding(struct pipeline_builder *builder,
         .inputRate = input_rate,
     };
 
-    darray_append(&builder->vertex_input_bindings, description);
+    darray_push(builder->vertex_input_bindings, description);
 }
 
-void pipeline_builder_add_input_attribute(struct pipeline_builder *builder,
+void pipeline_builder_add_input_attribute(pipeline_builder *builder,
                                           u32 binding,
                                           u32 location,
                                           VkFormat format,
@@ -85,26 +85,28 @@ void pipeline_builder_add_input_attribute(struct pipeline_builder *builder,
         .offset = offset,
     };
 
-    darray_append(&builder->vertex_input_attributes, description);
+    darray_push(builder->vertex_input_attributes, description);
 }
 
-void pipeline_builder_set_ubo_size(struct pipeline_builder *builder, u64 ubo_size) {
+void pipeline_builder_set_ubo_size(pipeline_builder *builder, u64 ubo_size) {
     builder->ubo_size = ubo_size;
 }
 
-void pipeline_builder_set_topology(struct pipeline_builder *builder, VkPrimitiveTopology topology) {
+void pipeline_builder_set_topology(pipeline_builder *builder,
+                                   VkPrimitiveTopology topology) {
     builder->topology = topology;
 }
 
-void pipeline_builder_set_cull_mode(struct pipeline_builder *builder, VkCullModeFlags cull_mode) {
+void pipeline_builder_set_cull_mode(pipeline_builder *builder,
+                                    VkCullModeFlags cull_mode) {
     builder->cull_mode = cull_mode;
 }
 
-void pipeline_builder_set_alpha_blending(struct pipeline_builder *builder, b8 value) {
+void pipeline_builder_set_alpha_blending(pipeline_builder *builder, b8 value) {
     builder->enable_alpha_blending = value;
 }
 
-void pipeline_builder_add_push_constant(struct pipeline_builder *builder,
+void pipeline_builder_add_push_constant(pipeline_builder *builder,
                                         VkShaderStageFlagBits shader_stage,
                                         u32 size) {
     VkPushConstantRange range = {
@@ -113,10 +115,10 @@ void pipeline_builder_add_push_constant(struct pipeline_builder *builder,
         .size = size,
     };
 
-    darray_append(&builder->push_constant_ranges, range);
+    darray_push(builder->push_constant_ranges, range);
 }
 
-b8 pipeline_builder_build(struct pipeline_builder *builder,
+b8 pipeline_builder_build(pipeline_builder *builder,
                           VkRenderPass render_pass,
                           struct pipeline *pipeline) {
     memset(pipeline, 0, sizeof(struct pipeline));
@@ -134,24 +136,28 @@ b8 pipeline_builder_build(struct pipeline_builder *builder,
 
         VkDescriptorSetLayoutCreateInfo layout_info = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-            .bindingCount = sizeof(VkDescriptorSetLayoutBinding) / sizeof(layout_bindings),
+            .bindingCount =
+                sizeof(VkDescriptorSetLayoutBinding) / sizeof(layout_bindings),
             .pBindings = layout_bindings,
         };
 
-        if (!ASSERT(vkCreateDescriptorSetLayout(builder->renderer->device.handle,
-                                                &layout_info,
-                                                NULL,
-                                                &pipeline->descriptor_set_layout) == VK_SUCCESS)) {
+        if (vkCreateDescriptorSetLayout(builder->renderer->device.handle,
+                                        &layout_info,
+                                        NULL,
+                                        &pipeline->descriptor_set_layout) !=
+            VK_SUCCESS) {
             return false;
         }
     }
 
     VkPipelineVertexInputStateCreateInfo vertex_input_state = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        .vertexBindingDescriptionCount = builder->vertex_input_bindings.count,
-        .pVertexBindingDescriptions = builder->vertex_input_bindings.items,
-        .vertexAttributeDescriptionCount = builder->vertex_input_attributes.count,
-        .pVertexAttributeDescriptions = builder->vertex_input_attributes.items,
+        .vertexBindingDescriptionCount =
+            darray_length(builder->vertex_input_bindings),
+        .pVertexBindingDescriptions = builder->vertex_input_bindings,
+        .vertexAttributeDescriptionCount =
+            darray_length(builder->vertex_input_attributes),
+        .pVertexAttributeDescriptions = builder->vertex_input_attributes,
     };
 
     VkPipelineInputAssemblyStateCreateInfo input_assembly_state = {
@@ -164,7 +170,8 @@ b8 pipeline_builder_build(struct pipeline_builder *builder,
         VK_DYNAMIC_STATE_VIEWPORT,
         VK_DYNAMIC_STATE_SCISSOR,
     };
-    uint32_t dynamic_state_count = sizeof(dynamic_states) / sizeof(VkDynamicState);
+    uint32_t dynamic_state_count =
+        sizeof(dynamic_states) / sizeof(VkDynamicState);
 
     VkPipelineDynamicStateCreateInfo dynamic_state = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
@@ -226,19 +233,20 @@ b8 pipeline_builder_build(struct pipeline_builder *builder,
 
     VkPipelineLayoutCreateInfo pipeline_layout_create_info = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .pushConstantRangeCount = builder->push_constant_ranges.count,
-        .pPushConstantRanges = builder->push_constant_ranges.items,
+        .pushConstantRangeCount = darray_length(builder->push_constant_ranges),
+        .pPushConstantRanges = builder->push_constant_ranges,
     };
 
     if (builder->ubo_size) {
         pipeline_layout_create_info.setLayoutCount = 1;
-        pipeline_layout_create_info.pSetLayouts = &pipeline->descriptor_set_layout;
+        pipeline_layout_create_info.pSetLayouts =
+            &pipeline->descriptor_set_layout;
     }
 
-    if (!ASSERT(vkCreatePipelineLayout(builder->renderer->device.handle,
-                                       &pipeline_layout_create_info,
-                                       NULL,
-                                       &pipeline->layout) == VK_SUCCESS)) {
+    if (vkCreatePipelineLayout(builder->renderer->device.handle,
+                               &pipeline_layout_create_info,
+                               NULL,
+                               &pipeline->layout) != VK_SUCCESS) {
         return false;
     }
 
@@ -261,12 +269,12 @@ b8 pipeline_builder_build(struct pipeline_builder *builder,
         .basePipelineIndex = -1,
     };
 
-    if (!ASSERT(vkCreateGraphicsPipelines(builder->renderer->device.handle,
-                                          VK_NULL_HANDLE,
-                                          1,
-                                          &create_info,
-                                          NULL,
-                                          &pipeline->handle) == VK_SUCCESS)) {
+    if (vkCreateGraphicsPipelines(builder->renderer->device.handle,
+                                  VK_NULL_HANDLE,
+                                  1,
+                                  &create_info,
+                                  NULL,
+                                  &pipeline->handle) != VK_SUCCESS) {
         return false;
     }
 
@@ -296,10 +304,10 @@ b8 pipeline_builder_build(struct pipeline_builder *builder,
             .maxSets = MAX_FRAMES_IN_FLIGHT,
         };
 
-        if (!ASSERT(vkCreateDescriptorPool(builder->renderer->device.handle,
-                                           &pool_info,
-                                           NULL,
-                                           &pipeline->descriptor_pool) == VK_SUCCESS)) {
+        if (vkCreateDescriptorPool(builder->renderer->device.handle,
+                                   &pool_info,
+                                   NULL,
+                                   &pipeline->descriptor_pool) != VK_SUCCESS) {
             return false;
         }
 
@@ -315,9 +323,9 @@ b8 pipeline_builder_build(struct pipeline_builder *builder,
             .pSetLayouts = layouts,
         };
 
-        if (!ASSERT(vkAllocateDescriptorSets(builder->renderer->device.handle,
-                                             &alloc_info,
-                                             pipeline->descriptor_sets) == VK_SUCCESS)) {
+        if (vkAllocateDescriptorSets(builder->renderer->device.handle,
+                                     &alloc_info,
+                                     pipeline->descriptor_sets) != VK_SUCCESS) {
             return false;
         }
 
@@ -341,29 +349,36 @@ b8 pipeline_builder_build(struct pipeline_builder *builder,
             };
 
             vkUpdateDescriptorSets(builder->renderer->device.handle,
-                                   sizeof(descriptor_writes) / sizeof(VkWriteDescriptorSet),
+                                   sizeof(descriptor_writes) /
+                                       sizeof(VkWriteDescriptorSet),
                                    descriptor_writes,
                                    0,
                                    NULL);
         }
     }
 
-    vkDestroyShaderModule(builder->renderer->device.handle, builder->vertex_shader_module, NULL);
-    vkDestroyShaderModule(builder->renderer->device.handle, builder->fragment_shader_module, NULL);
+    vkDestroyShaderModule(builder->renderer->device.handle,
+                          builder->vertex_shader_module,
+                          NULL);
+    vkDestroyShaderModule(builder->renderer->device.handle,
+                          builder->fragment_shader_module,
+                          NULL);
 
     return pipeline;
 }
 
-void pipeline_bind(const struct renderer *renderer, const struct pipeline *pipeline) {
+void pipeline_bind(const struct renderer *renderer,
+                   const struct pipeline *pipeline) {
     if (pipeline->uniform_buffer.size > 0) {
-        vkCmdBindDescriptorSets(renderer->commandbuffers[renderer->current_frame].handle,
-                                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                pipeline->layout,
-                                0,
-                                1,
-                                &pipeline->descriptor_sets[renderer->current_frame],
-                                0,
-                                NULL);
+        vkCmdBindDescriptorSets(
+            renderer->commandbuffers[renderer->current_frame].handle,
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
+            pipeline->layout,
+            0,
+            1,
+            &pipeline->descriptor_sets[renderer->current_frame],
+            0,
+            NULL);
     } else {
         TODO("No Uniform Buffer bound to pipeline");
     }
@@ -376,8 +391,12 @@ void pipeline_destroy(const struct device *device, struct pipeline *pipeline) {
     if (pipeline->uniform_buffer.size > 0) {
         render_buffer_destroy(device, &pipeline->uniform_buffer);
 
-        vkDestroyDescriptorPool(device->handle, pipeline->descriptor_pool, NULL);
-        vkDestroyDescriptorSetLayout(device->handle, pipeline->descriptor_set_layout, NULL);
+        vkDestroyDescriptorPool(device->handle,
+                                pipeline->descriptor_pool,
+                                NULL);
+        vkDestroyDescriptorSetLayout(device->handle,
+                                     pipeline->descriptor_set_layout,
+                                     NULL);
     }
 
     vkDestroyPipeline(device->handle, pipeline->handle, NULL);
@@ -388,7 +407,7 @@ b8 shader_module_create(const struct device *device,
                         const char *file_path,
                         VkShaderModule *shader_module) {
     FILE *fp = fopen(file_path, "rb");
-    if (!ASSERT(fp != NULL)) {
+    if (fp == NULL) {
         return false;
     }
 
@@ -407,8 +426,10 @@ b8 shader_module_create(const struct device *device,
         .pCode = (u32 *)buffer,
     };
 
-    if (!ASSERT(vkCreateShaderModule(device->handle, &create_info, NULL, shader_module) ==
-                VK_SUCCESS)) {
+    if (vkCreateShaderModule(device->handle,
+                             &create_info,
+                             NULL,
+                             shader_module) != VK_SUCCESS) {
         return false;
     }
 

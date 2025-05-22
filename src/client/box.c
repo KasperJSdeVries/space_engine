@@ -82,7 +82,7 @@ struct box box_new(const struct renderer *renderer) {
     render_buffer_copy(renderer, &index_staging_buffer, &box.model.indices);
     render_buffer_destroy(&renderer->device, &index_staging_buffer);
 
-    struct pipeline_builder builder = pipeline_builder_new(renderer);
+    pipeline_builder builder = pipeline_builder_new(renderer);
 
     pipeline_builder_set_shaders(&builder,
                                  "shaders/triangle.vert.spv",

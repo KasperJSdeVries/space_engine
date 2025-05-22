@@ -1,6 +1,5 @@
 #include "window.h"
 
-#include "core/assert.h"
 #include "core/result.h"
 #include "types.h"
 #include "vulkan/vulkan_xlib.h"
@@ -82,10 +81,10 @@ se_result window_surface_create(const struct window *window,
         .window = window->handle,
     };
 
-    if (!ASSERT(vkCreateXlibSurfaceKHR(instance->handle,
-                                       &create_info,
-                                       NULL,
-                                       &surface->handle) == VK_SUCCESS)) {
+    if (vkCreateXlibSurfaceKHR(instance->handle,
+                               &create_info,
+                               NULL,
+                               &surface->handle) != VK_SUCCESS) {
         return SE_RESULT_VULKAN_ERROR;
     }
 

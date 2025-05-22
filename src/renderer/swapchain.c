@@ -157,10 +157,10 @@ b8 swapchain_create(const struct device *device,
 
     swapchain_support_details_destroy(&swapchain_support);
 
-    if (!ASSERT(vkCreateSwapchainKHR(device->handle,
-                                     &create_info,
-                                     NULL,
-                                     &swapchain->handle) == VK_SUCCESS)) {
+    if (vkCreateSwapchainKHR(device->handle,
+                             &create_info,
+                             NULL,
+                             &swapchain->handle) != VK_SUCCESS) {
         return false;
     }
 
@@ -242,11 +242,10 @@ b8 swapchain_framebuffers_create(const struct device *device,
             .layers = 1,
         };
 
-        if (!ASSERT(vkCreateFramebuffer(device->handle,
-                                        &framebuffer_info,
-                                        NULL,
-                                        &swapchain->framebuffers[i]) ==
-                    VK_SUCCESS)) {
+        if (vkCreateFramebuffer(device->handle,
+                                &framebuffer_info,
+                                NULL,
+                                &swapchain->framebuffers[i]) != VK_SUCCESS) {
             return false;
         }
     }

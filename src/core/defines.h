@@ -7,6 +7,14 @@
 
 #define UNLIKELY(expr) __builtin_expect(!!(expr), 0)
 
+#if _DEBUG
+    #define SE_DEBUG 1
+    #define SE_RELEASE 0
+#else
+    #define SE_DEBUG 0
+    #define SE_RELEASE 1
+#endif
+
 #if !defined(SE_WIN32) && !defined(SE_LINUX)
     #if defined(WIN32) || defined(_WIN32)
         #define SE_WIN32

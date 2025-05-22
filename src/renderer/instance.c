@@ -1,7 +1,7 @@
 #include "instance.h"
 
-#include "core/assert.h"
 #include "core/defines.h"
+#include "core/logging.h"
 
 #include <vulkan/vulkan_xlib.h>
 
@@ -79,19 +79,18 @@ b8 instance_create(struct instance *instance) {
 #endif // ENABLE_VALIDATION_LAYERS
     };
 
-    if (!(ASSERT(vkCreateInstance(&instance_create_info,
-                                  NULL,
-                                  &instance->handle) == VK_SUCCESS))) {
-        return false;
+    if (vkCreateInstance(&instance_create_info, NULL, &instance->handle) !=
+        VK_SUCCESS) {
+        return false; // TODO: Better error handling
     }
 
 #if ENABLE_VALIDATION_LAYERS
-    if (!(ASSERT(vkCreateDebugUtilsMessengerEXT(instance->handle,
-                                                &debug_messenger_create_info,
-                                                NULL,
-                                                &instance->debug_messenger) ==
-                 VK_SUCCESS))) {
-        return false;
+    if (vkCreateDebugUtilsMessengerEXT(instance->handle,
+                                       &debug_messenger_create_info,
+                                       NULL,
+                                       &instance->debug_messenger) !=
+        VK_SUCCESS) {
+        return false; // TODO: better error handling
     }
 #endif // ENABLE_VALIDATION_LAYERS
 
@@ -123,8 +122,13 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_messenger_callback(
     case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
         LOG_WARN("%s", callback_data->pMessage);
         break;
-    default:
+    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
         LOG_INFO("%s", callback_data->pMessage);
+        break;
+    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
+        LOG_TRACE("%s", callback_data->pMessage);
+        break;
+    default:
         break;
     };
 

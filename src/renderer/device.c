@@ -26,9 +26,7 @@ b8 device_create(const struct instance *instance,
                                      &physical_device_count,
                                      NULL);
 
-    if (!ASSERT(physical_device_count > 0)) {
-        return false;
-    }
+    ASSERT(physical_device_count > 0);
 
     VkPhysicalDevice physical_devices[physical_device_count];
     (void)vkEnumeratePhysicalDevices(instance->handle,
@@ -50,8 +48,8 @@ b8 device_create(const struct instance *instance,
         }
     }
 
-    if (!ASSERT(highest_score != -1)) {
-        return false;
+    if (highest_score == -1) {
+        return false; // TODO: error handling with nice message
     }
 
     VkPhysicalDeviceProperties properties;
@@ -109,8 +107,8 @@ b8 device_create(const struct instance *instance,
                                      &create_info,
                                      NULL,
                                      &device->handle);
-    if (!ASSERT(result == VK_SUCCESS)) {
-        return false;
+    if (result != VK_SUCCESS) {
+        return false; // TODO: Error handling with nice message
     }
 
     vkGetDeviceQueue(device->handle,

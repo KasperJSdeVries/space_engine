@@ -1,7 +1,6 @@
 #include "renderer.h"
 
 #include "commandbuffer.h"
-#include "core/assert.h"
 #include "core/defines.h"
 #include "core/result.h"
 #include "device.h"
@@ -21,25 +20,23 @@ void on_window_resize(void);
 se_result renderer_startup(Display *display, struct renderer *renderer) {
     se_result result;
 
-    if (!ASSERT(instance_create(&renderer->instance))) {
+    if (!instance_create(&renderer->instance)) {
         return false;
     }
 
-    if (!ASSERT(result = window_create(display, &renderer->window) ==
-                         SE_RESULT_OK)) {
+    if ((result = window_create(display, &renderer->window)) != SE_RESULT_OK) {
         return result;
     }
 
-    if (!ASSERT(result = window_surface_create(&renderer->window,
-                                               &renderer->instance,
-                                               &renderer->surface) ==
-                         SE_RESULT_OK)) {
+    if ((result = window_surface_create(&renderer->window,
+                                        &renderer->instance,
+                                        &renderer->surface)) != SE_RESULT_OK) {
         return result;
     }
 
-    if (!ASSERT(device_create(&renderer->instance,
-                              &renderer->surface,
-                              &renderer->device))) {
+    if (!device_create(&renderer->instance,
+                       &renderer->surface,
+                       &renderer->device)) {
         return SE_RESULT_VULKAN_ERROR;
     }
 
@@ -86,23 +83,24 @@ se_result renderer_startup(Display *display, struct renderer *renderer) {
     };
 
     for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        if (!ASSERT(
-                vkCreateSemaphore(renderer->device.handle,
-                                  &semaphore_info,
-                                  NULL,
-                                  &renderer->image_available_semaphores[i]) ==
-                VK_SUCCESS) ||
-            !ASSERT(
-                vkCreateSemaphore(renderer->device.handle,
-                                  &semaphore_info,
-                                  NULL,
-                                  &renderer->render_finished_semaphores[i]) ==
-                VK_SUCCESS) ||
-            !ASSERT(vkCreateFence(renderer->device.handle,
-                                  &fence_info,
-                                  NULL,
-                                  &renderer->in_flight_fences[i]) ==
-                    VK_SUCCESS)) {
+        if (vkCreateSemaphore(renderer->device.handle,
+                              &semaphore_info,
+                              NULL,
+                              &renderer->image_available_semaphores[i]) !=
+            VK_SUCCESS) {
+            return false;
+        }
+        if (vkCreateSemaphore(renderer->device.handle,
+                              &semaphore_info,
+                              NULL,
+                              &renderer->render_finished_semaphores[i]) !=
+            VK_SUCCESS) {
+            return false;
+        }
+        if (vkCreateFence(renderer->device.handle,
+                          &fence_info,
+                          NULL,
+                          &renderer->in_flight_fences[i]) != VK_SUCCESS) {
             return false;
         }
     }
@@ -165,8 +163,8 @@ se_result renderer_start_frame(struct renderer *renderer) {
                            &renderer->renderpass,
                            &renderer->swapchain);
         return true;
-    } else if (!ASSERT(acquire_next_image_result == VK_SUCCESS ||
-                       acquire_next_image_result == VK_SUBOPTIMAL_KHR)) {
+    } else if (!(acquire_next_image_result == VK_SUCCESS ||
+                 acquire_next_image_result == VK_SUBOPTIMAL_KHR)) {
         return false;
     }
 
@@ -239,12 +237,11 @@ se_result renderer_end_frame(struct renderer *renderer) {
         .pSignalSemaphores = signal_semaphores,
     };
 
-    if (!ASSERT(vkQueueSubmit(
-                    renderer->device.graphics_queue,
-                    1,
-                    &submit_info,
-                    renderer->in_flight_fences[renderer->current_frame]) ==
-                VK_SUCCESS)) {
+    if (vkQueueSubmit(renderer->device.graphics_queue,
+                      1,
+                      &submit_info,
+                      renderer->in_flight_fences[renderer->current_frame]) !=
+        VK_SUCCESS) {
         return false;
     }
 
@@ -271,7 +268,7 @@ se_result renderer_end_frame(struct renderer *renderer) {
                            &renderer->window,
                            &renderer->renderpass,
                            &renderer->swapchain);
-    } else if (!ASSERT(result == VK_SUCCESS)) {
+    } else if (result != VK_SUCCESS) {
         return false;
     }
 

@@ -2,7 +2,9 @@
 #include "core/assert.h"
 #include "vulkan/vulkan_core.h"
 
-u32 find_memory_type(VkPhysicalDevice device, u32 type_filter, VkMemoryPropertyFlags properties);
+u32 find_memory_type(VkPhysicalDevice device,
+                     u32 type_filter,
+                     VkMemoryPropertyFlags properties);
 
 b8 render_buffer_create(const struct device *device,
                         VkBufferUsageFlags usage,
@@ -18,13 +20,15 @@ b8 render_buffer_create(const struct device *device,
         .usage = usage,
     };
 
-    if (!ASSERT(vkCreateBuffer(device->handle, &create_info, NULL, &buffer->handle) ==
-                VK_SUCCESS)) {
+    if (vkCreateBuffer(device->handle, &create_info, NULL, &buffer->handle) !=
+        VK_SUCCESS) {
         return false;
     }
 
     VkMemoryRequirements memory_requirements;
-    vkGetBufferMemoryRequirements(device->handle, buffer->handle, &memory_requirements);
+    vkGetBufferMemoryRequirements(device->handle,
+                                  buffer->handle,
+                                  &memory_requirements);
 
     VkMemoryAllocateInfo allocate_info = {
         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -34,8 +38,10 @@ b8 render_buffer_create(const struct device *device,
                                             properties),
     };
 
-    if (!ASSERT(vkAllocateMemory(device->handle, &allocate_info, NULL, &buffer->memory) ==
-                VK_SUCCESS)) {
+    if (vkAllocateMemory(device->handle,
+                         &allocate_info,
+                         NULL,
+                         &buffer->memory) != VK_SUCCESS) {
         return false;
     }
 
@@ -44,7 +50,8 @@ b8 render_buffer_create(const struct device *device,
     return true;
 }
 
-void render_buffer_destroy(const struct device *device, struct renderbuffer *buffer) {
+void render_buffer_destroy(const struct device *device,
+                           struct renderbuffer *buffer) {
     vkDestroyBuffer(device->handle, buffer->handle, NULL);
     vkFreeMemory(device->handle, buffer->memory, NULL);
 }
@@ -60,7 +67,9 @@ void render_buffer_copy(const struct renderer *renderer,
     };
 
     VkCommandBuffer command_buffer;
-    vkAllocateCommandBuffers(renderer->device.handle, &alloc_info, &command_buffer);
+    vkAllocateCommandBuffers(renderer->device.handle,
+                             &alloc_info,
+                             &command_buffer);
 
     VkCommandBufferBeginInfo begin_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -73,7 +82,11 @@ void render_buffer_copy(const struct renderer *renderer,
         .size = src_buffer->size,
     };
 
-    vkCmdCopyBuffer(command_buffer, src_buffer->handle, dst_buffer->handle, 1, &copy_region);
+    vkCmdCopyBuffer(command_buffer,
+                    src_buffer->handle,
+                    dst_buffer->handle,
+                    1,
+                    &copy_region);
 
     vkEndCommandBuffer(command_buffer);
 
@@ -83,7 +96,10 @@ void render_buffer_copy(const struct renderer *renderer,
         .pCommandBuffers = &command_buffer,
     };
 
-    vkQueueSubmit(renderer->device.graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
+    vkQueueSubmit(renderer->device.graphics_queue,
+                  1,
+                  &submit_info,
+                  VK_NULL_HANDLE);
     vkQueueWaitIdle(renderer->device.graphics_queue);
 }
 
@@ -93,17 +109,21 @@ void render_buffer_map_memory(const struct device *device,
     vkMapMemory(device->handle, buffer->memory, 0, buffer->size, 0, ptr);
 }
 
-void render_buffer_unmap_memory(const struct device *device, const struct renderbuffer *buffer) {
+void render_buffer_unmap_memory(const struct device *device,
+                                const struct renderbuffer *buffer) {
     vkUnmapMemory(device->handle, buffer->memory);
 }
 
-u32 find_memory_type(VkPhysicalDevice device, u32 type_filter, VkMemoryPropertyFlags properties) {
+u32 find_memory_type(VkPhysicalDevice device,
+                     u32 type_filter,
+                     VkMemoryPropertyFlags properties) {
     VkPhysicalDeviceMemoryProperties memory_properties;
     vkGetPhysicalDeviceMemoryProperties(device, &memory_properties);
 
     for (u32 i = 0; i < memory_properties.memoryTypeCount; i++) {
         if ((type_filter & (1 << i)) &&
-            (memory_properties.memoryTypes[i].propertyFlags & properties) == properties) {
+            (memory_properties.memoryTypes[i].propertyFlags & properties) ==
+                properties) {
             return i;
         }
     }

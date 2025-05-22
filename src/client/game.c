@@ -132,7 +132,7 @@ static void generate_ground_plane(const struct renderer *renderer,
     render_buffer_copy(renderer, &index_staging_buffer, &ground_plane->indices);
     render_buffer_destroy(&renderer->device, &index_staging_buffer);
 
-    struct pipeline_builder pipeline_builder = pipeline_builder_new(renderer);
+    pipeline_builder pipeline_builder = pipeline_builder_new(renderer);
     pipeline_builder_set_shaders(&pipeline_builder,
                                  "shaders/triangle.vert.spv",
                                  "shaders/triangle.frag.spv");
