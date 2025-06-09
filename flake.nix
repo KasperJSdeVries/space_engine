@@ -66,7 +66,7 @@
           nil
           neocmakelsp
           nodejs
-          kcachegrind
+          kdePackages.kcachegrind
           renderdoc
           vulkan-tools
           vscode-langservers-extracted
