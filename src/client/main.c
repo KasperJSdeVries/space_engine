@@ -1,4 +1,4 @@
-#include "client/box.h"
+/*#include "client/box.h"
 #include "core/assert.h"
 #include "core/defines.h"
 #include "core/logging.h"
@@ -71,8 +71,37 @@ int main(void) {
 
     // HACK: display needs to be closed before instance is destroyed to prevent
     // segfault
-    // (https://github.com/KhronosGroup/Vulkan-LoaderAndValidationLayers/issues/1894#issuecomment-309832783)
+    //
+(https://github.com/KhronosGroup/Vulkan-LoaderAndValidationLayers/issues/1894#issuecomment-309832783)
     XCloseDisplay(display);
 
     instance_destroy(&renderer.instance);
+}
+*/
+
+#include "ecs/component_store.h"
+#include "ecs/world.h"
+
+typedef struct {
+    vec3s position;
+    vec3s rotation;
+    vec3s scale;
+} transform_component;
+
+int main(void) {
+    world world = world_new();
+
+    world_add_component(&world, transform_component);
+
+    transform_component transform = (transform_component){
+        .position = {{1.0, 1.0, 1.0}},
+    };
+
+    for (u32 i = 0; i < 100; i++) {
+        entity_id entity = world_create_entity(&world);
+
+        entity_add_component(&world, entity, transform_component, transform);
+    }
+
+    component_store_print(&world.component_stores[0]);
 }

@@ -4,7 +4,7 @@
 #include "core/logging.h"
 #include "types.h"
 
-#include "core/darray.h"
+#include "containers/darray.h"
 #include "core/defines.h"
 
 #include <stdio.h>

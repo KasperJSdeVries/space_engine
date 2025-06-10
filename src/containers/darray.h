@@ -25,6 +25,26 @@ void *_darray_push(void *array, const void *value_ptr);
         array = _darray_push(array, &__temp_value_copy__);                     \
     } while (0)
 
+void darray_pop(void *array, void *out_value_ptr);
+
+void *_darray_insert_at(void *array, u64 index, const void *value_ptr);
+
+#define darray_insert_at(array, index, value)                                  \
+    do {                                                                       \
+        typeof(value) __temp_value_copy__ = value;                             \
+        array = _darray_insert_at(array, index, &__temp_value_copy__);         \
+    } while (0)
+
+void darray_clear(void *array);
+
 u64 darray_length(void *array);
+
+void darray_length_set(void *array, u64 length);
+
+u64 darray_stride(void *array);
+
+u64 darray_size(void *array);
+
+u64 darray_capacity(void *array);
 
 #endif // CORE_DARRAY_H

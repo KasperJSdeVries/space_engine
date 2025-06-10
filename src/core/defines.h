@@ -1,6 +1,9 @@
 #ifndef SE_DEFINES_H
 #define SE_DEFINES_H
 
+#define CGLM_OMIT_NS_FROM_STRUCT_API
+#include <cglm/struct.h>
+
 #define UNUSED(value) (void)(value)
 
 #define ARRAY_SIZE(arr) (sizeof((arr)) / sizeof(*(arr)))

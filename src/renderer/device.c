@@ -12,7 +12,11 @@
 #include <stdio.h>
 #include <string.h>
 
-static const char *device_extensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+static const char *device_extensions[] = {
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+    VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+    VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
+    VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
 static const u32 device_extension_count = ARRAY_SIZE(device_extensions);
 
 static i32 rank_physical_device(VkPhysicalDevice device, VkSurfaceKHR surface);
@@ -90,6 +94,17 @@ b8 device_create(const struct instance *instance,
 
     VkPhysicalDeviceFeatures device_features = {0};
 
+    VkPhysicalDeviceAccelerationStructureFeaturesKHR accelFeature = {
+        .sType =
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
+    };
+
+    VkPhysicalDeviceRayTracingPipelineFeaturesKHR rtPipelineFeature = {
+        .sType =
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR,
+        .pNext = &accelFeature,
+    };
+
     VkDeviceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .queueCreateInfoCount = unique_indices_count,
@@ -101,6 +116,7 @@ b8 device_create(const struct instance *instance,
         .enabledLayerCount = validation_layer_count,
         .ppEnabledLayerNames = validation_layers,
 #endif
+        .pNext = &rtPipelineFeature,
     };
 
     VkResult result = vkCreateDevice(device->physical_device,

@@ -1,10 +1,10 @@
-#version 450
+#version 460
+#extension GL_GOOGLE_include_directive : require
+#include "uniform_buffer_object.glsl"
 
-layout(binding = 0) uniform UniformBufferObject {
-	mat4 model;
-	mat4 view;
-	mat4 proj;
-} ubo;
+layout(binding = 0) readonly uniform uniform_buffer_object_struct {
+	uniform_buffer_object ubo; 
+};
 
 layout(location = 0) in vec3 inPosition;
 

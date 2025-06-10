@@ -1,12 +1,8 @@
 #ifndef RENDER_TYPES_H
 #define RENDER_TYPES_H
 
-#include "core/darray.h"
+#include "containers/darray.h"
 #include "core/defines.h"
-#include "vulkan/vulkan_core.h"
-
-#define CGLM_OMIT_NS_FROM_STRUCT_API
-#include <cglm/struct.h>
 
 #include <X11/X.h>
 #include <X11/Xlib.h>
