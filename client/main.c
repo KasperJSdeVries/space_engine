@@ -89,9 +89,9 @@ typedef struct {
 } transform_component;
 
 int main(void) {
-    world world = world_new();
+    World world = world_new();
 
-    world_add_component(&world, transform_component);
+    world_register_component(&world, transform_component);
 
     transform_component transform = (transform_component){
         .position = {{1.0, 1.0, 1.0}},
@@ -100,7 +100,7 @@ int main(void) {
     for (u32 i = 0; i < 100; i++) {
         entity_id entity = world_create_entity(&world);
 
-        entity_add_component(&world, entity, transform_component, transform);
+        world_attach_component(&world, entity, transform_component, transform);
     }
 
     component_store_print(&world.component_stores[0]);

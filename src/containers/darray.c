@@ -16,7 +16,8 @@ void *_darray_new(u64 length, u64 stride) {
     u64 header_size = sizeof(darray_header);
     u64 array_size = length * stride;
 
-    void *new_array = calloc(1, header_size + array_size);
+    void *new_array = malloc(header_size + array_size);
+    memset(new_array, 0, header_size + array_size);
 
     darray_header *header = new_array;
     header->capacity = length;
@@ -56,13 +57,17 @@ void *_darray_resize(void *array) {
 void *_darray_push(void *array, const void *value_ptr) {
     ASSERT_DEBUG(array);
 
-    if (darray_length(array) >= darray_capacity(array)) {
+    u64 header_size = sizeof(darray_header);
+    darray_header *header = (darray_header *)((u8 *)array - header_size);
+
+    if (header->length >= header->capacity) {
         array = _darray_resize(array);
+        header = (darray_header *)((u8 *)array - header_size);
     }
 
-    u64 address = (u64)array + (darray_length(array) * darray_stride(array));
-    memcpy((void *)address, value_ptr, darray_stride(array));
-    darray_length_set(array, darray_length(array) + 1);
+    u64 address = (u64)array + (header->length * header->stride);
+    memcpy((void *)address, value_ptr, header->stride);
+    darray_length_set(array, header->length + 1);
 
     return array;
 }
@@ -75,6 +80,15 @@ void darray_pop(void *array, void *out_value_ptr) {
     header->length--;
     u64 address = (u64)array + header->length * header->stride;
     memcpy(out_value_ptr, (void *)address, header->stride);
+}
+
+void darray_pop_front(void *array, void *out_value_ptr) {
+    ASSERT_DEBUG(array);
+    u64 header_size = sizeof(darray_header);
+    darray_header *header = (darray_header *)((u8 *)array - header_size);
+
+    memcpy(out_value_ptr, array, header->stride);
+    darray_remove_at_sorted(array, 0);
 }
 
 void *_darray_insert_at(void *array, u64 index, const void *value_ptr) {
@@ -91,7 +105,7 @@ void *_darray_insert_at(void *array, u64 index, const void *value_ptr) {
 
     if (index < length) {
         memcpy((void *)(address + ((index + 1) * stride)),
-               (void *)(address * (index * stride)),
+               (void *)(address + (index * stride)),
                stride * (length - index));
         memcpy((void *)(address + (index * stride)), value_ptr, stride);
         darray_length_set(array, length + 1);
@@ -101,6 +115,34 @@ void *_darray_insert_at(void *array, u64 index, const void *value_ptr) {
     }
 
     return array;
+}
+
+void darray_remove_at(void *array, u64 index) {
+    ASSERT_DEBUG(array != NULL);
+
+    u64 header_size = sizeof(darray_header);
+    darray_header *header = (darray_header *)((u8 *)array - header_size);
+
+    ASSERT(index < header->length);
+
+    memcpy((void *)((u64)array + (index * header->stride)),
+           (void *)((u64)array + ((header->length - 1) * header->stride)),
+           header->stride);
+    darray_length_set(array, header->length - 1);
+}
+
+void darray_remove_at_sorted(void *array, u64 index) {
+    ASSERT_DEBUG(array != NULL);
+
+    u64 header_size = sizeof(darray_header);
+    darray_header *header = (darray_header *)((u8 *)array - header_size);
+
+    ASSERT(index < header->length);
+
+    memcpy((void *)((u64)array + (index * header->stride)),
+           (void *)((u64)array + ((index + 1) * header->stride)),
+           (header->length - index - 1) * header->stride);
+    darray_length_set(array, header->length - 1);
 }
 
 void darray_clear(void *array) { darray_length_set(array, 0); }

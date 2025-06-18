@@ -1,7 +1,7 @@
 #include "ecs/component_store.h"
 #include "containers/darray.h"
+#include "core/assert.h"
 #include "core/defines.h"
-#include "core/logging.h"
 #include "ecs/entity.h"
 #include "stdlib.h"
 
@@ -20,7 +20,7 @@ typedef struct node {
     b8 is_leaf;
 } node;
 
-static node *find_leaf(const component_store *store, entity_id key) {
+static node *find_leaf(const ComponentStore *store, entity_id key) {
     if (store->root == NULL) {
         return NULL;
     }
@@ -42,7 +42,7 @@ static node *find_leaf(const component_store *store, entity_id key) {
     return c;
 }
 
-u32 find_range(const component_store *store,
+u32 find_range(const ComponentStore *store,
                entity_id key_start,
                entity_id key_end,
                entity_id *returned_keys,
@@ -90,6 +90,12 @@ static node *make_leaf(void) {
     return leaf;
 }
 
+static void node_destroy(node *node) {
+    darray_destroy(node->keys);
+    darray_destroy(node->pointers);
+    free(node);
+}
+
 static u32 get_left_index(node *parent, node *left) {
     u32 left_index = 0;
     while (left_index <= darray_length(parent->keys) &&
@@ -110,9 +116,10 @@ static void insert_into_leaf(node *leaf, entity_id key, void *value) {
     darray_insert_at(leaf->pointers, insertion_point, value);
 }
 
-static void *find(const component_store *store,
-                  entity_id key,
-                  node **leaf_out) {
+/**
+ * @return NULL when nothing is found
+ */
+static void *find(const ComponentStore *store, entity_id key, node **leaf_out) {
     if (store->root == NULL) {
         if (leaf_out != NULL) {
             *leaf_out = NULL;
@@ -148,7 +155,7 @@ static u32 cut(u32 length) {
     }
 }
 
-static void insert_into_new_root(component_store *store,
+static void insert_into_new_root(ComponentStore *store,
                                  node *left,
                                  entity_id key,
                                  node *right) {
@@ -170,12 +177,12 @@ static void insert_into_node(node *n,
     darray_insert_at(n->pointers, left_index + 1, right);
 }
 
-static void insert_into_parent(component_store *store,
+static void insert_into_parent(ComponentStore *store,
                                node *left,
                                entity_id key,
                                node *right);
 
-static void insert_into_node_after_splitting(component_store *store,
+static void insert_into_node_after_splitting(ComponentStore *store,
                                              node *old_node,
                                              u32 left_index,
                                              entity_id key,
@@ -224,7 +231,7 @@ static void insert_into_node_after_splitting(component_store *store,
     insert_into_parent(store, old_node, k_prime, new_node);
 }
 
-static void insert_into_parent(component_store *store,
+static void insert_into_parent(ComponentStore *store,
                                node *left,
                                entity_id key,
                                node *right) {
@@ -245,7 +252,7 @@ static void insert_into_parent(component_store *store,
     insert_into_node_after_splitting(store, parent, left_index, key, right);
 }
 
-static void insert_into_leaf_after_splitting(component_store *store,
+static void insert_into_leaf_after_splitting(ComponentStore *store,
                                              node *leaf,
                                              entity_id key,
                                              void *value) {
@@ -295,9 +302,9 @@ static void insert_into_leaf_after_splitting(component_store *store,
     insert_into_parent(store, leaf, new_key, new_leaf);
 }
 
-component_store _component_store_new(const char *component_name,
-                                     u64 component_size) {
-    return (component_store){
+ComponentStore component_store_new(const char *component_name,
+                                   u64 component_size) {
+    return (ComponentStore){
         .component_name = component_name,
         .order = DEFAULT_ORDER,
         .component_array =
@@ -309,19 +316,36 @@ component_store _component_store_new(const char *component_name,
     };
 }
 
-static void start_new_tree(component_store *store, entity_id key, void *value) {
+static void tree_destroy(node *n) {
+    if (!n->is_leaf) {
+        for (u32 i = 0; i < darray_length(n->pointers); i++) {
+            tree_destroy(n->pointers[i]);
+        }
+    }
+
+    node_destroy(n);
+}
+
+void component_store_destroy(ComponentStore *store) {
+    if (store->root != NULL) {
+        tree_destroy(store->root);
+    }
+    free(store->component_array);
+    darray_destroy(store->free_slots);
+}
+
+static void start_new_tree(ComponentStore *store, entity_id key, void *value) {
     node *root = make_leaf();
 
     darray_push(root->keys, key);
     darray_push(root->pointers, value);
 
     store->root = root;
-    store->queue = root;
 }
 
-void _component_store_insert(component_store *store,
-                             entity_id key,
-                             const void *value_ptr) {
+void component_store_insert(ComponentStore *store,
+                            entity_id key,
+                            const void *value_ptr) {
     void *component_pointer = find(store, key, NULL);
     if (component_pointer != NULL) {
         memcpy(component_pointer, value_ptr, store->component_size);
@@ -364,8 +388,171 @@ void _component_store_insert(component_store *store,
     insert_into_leaf_after_splitting(store, leaf, key, component_pointer);
 }
 
-void component_store_print(const component_store *store) {
-    node *n = store->queue;
+static void remove_entry_from_node(node *n, entity_id key) {
+    u32 index = 0;
+    while (n->keys[index] != key) {
+        index++;
+    }
+
+    darray_remove_at_sorted(n->keys, index);
+    darray_remove_at_sorted(n->pointers, index);
+}
+
+static void adjust_root(ComponentStore *store) {
+    if (darray_length(store->root->keys) > 0) {
+        return;
+    }
+
+    node *new_root;
+    if (!store->root->is_leaf) {
+        new_root = store->root->pointers[0];
+        new_root->parent = NULL;
+    } else {
+        new_root = NULL;
+    }
+
+    node_destroy(store->root);
+
+    store->root = new_root;
+}
+
+static i32 get_neighbor_index(node *n) {
+    for (i32 i = 0; (u32)i <= darray_length(n->parent->keys); i++) {
+        if (n->parent->pointers[i] == n) {
+            return i - 1;
+        }
+    }
+
+    ASSERT_UNREACHABLE();
+}
+
+static void delete_entry(ComponentStore *store, node *n, entity_id key);
+
+static void coalesce_nodes(ComponentStore *store,
+                           node *n,
+                           node *neigbor,
+                           i32 neighbor_index,
+                           entity_id k_prime) {
+    if (neighbor_index == -1) {
+        node *tmp = n;
+        n = neigbor;
+        neigbor = tmp;
+    }
+
+    if (!n->is_leaf) {
+        darray_push(neigbor->keys, k_prime);
+
+        for (u32 i = 0; i < darray_length(n->keys); i++) {
+            darray_push(neigbor->keys, n->keys[i]);
+            darray_push(neigbor->pointers, n->pointers[i]);
+        }
+        darray_push(neigbor->pointers,
+                    n->pointers[darray_length(n->pointers) - 1]);
+
+        for (u32 i = 0; i < darray_length(neigbor->pointers); i++) {
+            node *tmp = (node *)neigbor->pointers[i];
+            tmp->parent = neigbor;
+        }
+    } else {
+        for (u32 i = 0; i < darray_length(n->keys); i++) {
+            darray_push(neigbor->keys, n->keys[i]);
+            darray_push(neigbor->pointers, n->pointers[i]);
+        }
+        neigbor->next = n->next;
+    }
+
+    delete_entry(store, n->parent, k_prime);
+    node_destroy(n);
+}
+
+static void redistribute_nodes(node *n,
+                               node *neighbor,
+                               i32 neighbor_index,
+                               u32 k_prime_index,
+                               entity_id k_prime) {
+    if (neighbor_index != -1) {
+        void *neighbor_pointer;
+        darray_pop(neighbor->pointers, &neighbor_pointer);
+        darray_insert_at(n->pointers, 0, neighbor_pointer);
+
+        entity_id neighbor_key;
+        darray_pop(neighbor->keys, &neighbor_key);
+
+        if (!n->is_leaf) {
+            node *tmp = (node *)n->pointers[0];
+            tmp->parent = n;
+            darray_insert_at(n->keys, 0, k_prime);
+            n->parent->keys[k_prime_index] = neighbor_key;
+        } else {
+            darray_insert_at(n->keys, 0, neighbor_key);
+            n->parent->keys[k_prime_index] = n->keys[0];
+        }
+    } else {
+        entity_id neighbor_key;
+        darray_pop_front(neighbor->keys, &neighbor_key);
+
+        void *neighbor_pointer;
+        darray_pop_front(neighbor->pointers, &neighbor_pointer);
+
+        if (n->is_leaf) {
+            darray_push(n->keys, neighbor_key);
+            darray_push(n->pointers, neighbor_pointer);
+            n->parent->keys[k_prime_index] = neighbor->keys[0];
+        } else {
+            darray_push(n->keys, k_prime);
+            darray_push(n->pointers, neighbor_pointer);
+            ((node *)(neighbor_pointer))->parent = n;
+            n->parent->keys[k_prime_index] = neighbor_key;
+        }
+    }
+}
+
+static void delete_entry(ComponentStore *store, node *n, entity_id key) {
+    remove_entry_from_node(n, key);
+
+    if (n == store->root) {
+        adjust_root(store);
+        return;
+    }
+
+    u32 min_keys = n->is_leaf ? cut(store->order - 1) : cut(store->order) - 1;
+
+    if (darray_length(n->keys) >= min_keys) {
+        return;
+    }
+
+    i32 neighbor_index = get_neighbor_index(n);
+    u32 k_prime_index = neighbor_index == -1 ? 0 : neighbor_index;
+    entity_id k_prime = n->parent->keys[k_prime_index];
+    node *neigbor = neighbor_index == -1 ? n->parent->pointers[1]
+                                         : n->parent->pointers[neighbor_index];
+
+    u32 capacity = n->is_leaf ? store->order : store->order - 1;
+
+    if (darray_length(neigbor->keys) + darray_length(n->keys) < capacity) {
+        coalesce_nodes(store, n, neigbor, neighbor_index, k_prime);
+    } else {
+        redistribute_nodes(n, neigbor, neighbor_index, k_prime_index, k_prime);
+    }
+}
+
+void component_store_remove(ComponentStore *store, entity_id key) {
+    node *leaf;
+    void *found_component = find(store, key, &leaf);
+
+    if (found_component == NULL) {
+        return;
+    }
+
+    delete_entry(store, leaf, key);
+
+    u64 slot = ((u64)found_component - (u64)store->component_array) /
+               store->component_size;
+    darray_push(store->free_slots, slot);
+}
+
+void component_store_print(const ComponentStore *store) {
+    node *n = find_leaf(store, 0);
     while (n != NULL) {
         for (u32 i = 0; i < darray_length(n->keys); i++) {
             printf("%d ", n->keys[i]);
@@ -373,4 +560,8 @@ void component_store_print(const component_store *store) {
         printf("\n");
         n = n->next;
     }
+}
+
+void *component_store_find(const ComponentStore *store, entity_id key) {
+    return find(store, key, NULL);
 }

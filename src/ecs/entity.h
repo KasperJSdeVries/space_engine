@@ -8,6 +8,6 @@ typedef u32 entity_id;
 typedef struct {
     entity_id id;
     u32 generation;
-} entity;
+} Entity;
 
 #endif // ENTITY_H

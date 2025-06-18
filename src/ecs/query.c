@@ -3,7 +3,7 @@
 #include <stdarg.h>
 #include <string.h>
 
-query _query_new(const char *first, ...) {
+Query _query_new(const char *first, ...) {
     va_list args;
 
     u32 count = 0;
@@ -31,7 +31,7 @@ query _query_new(const char *first, ...) {
     }
     va_end(args);
 
-    return (query){
+    return (Query){
         .names = names,
         .count = count,
         .sizes = sizes,

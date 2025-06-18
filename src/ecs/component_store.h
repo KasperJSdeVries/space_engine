@@ -13,36 +13,33 @@ typedef struct {
 typedef enum {
     COMPONENT_FLAG_REPLICATED = 1 << 0,
     COMPONENT_FLAG_INTERPOLATE = 1 << 1,
-} component_flags;
+} ComponentFlags;
 
 typedef struct {
     struct node *root;
-    struct node *queue;
     const char *component_name;
+    darray(u64) free_slots;
     void *component_array;
     u32 component_size;
     u32 component_capacity;
     u32 component_count;
-    darray(u64) free_slots;
     u32 order;
-    component_flags flags;
-} component_store;
+    ComponentFlags flags;
+} ComponentStore;
 
-component_store _component_store_new(const char *component_name,
-                                     u64 component_size);
+ComponentStore component_store_new(const char *component_name,
+                                   u64 component_size);
 
-#define component_store_new(type) _component_store_new(#type, sizeof(type))
+void component_store_destroy(ComponentStore *store);
 
-void _component_store_insert(component_store *store,
-                             entity_id key,
-                             const void *value_ptr);
+void component_store_insert(ComponentStore *store,
+                            entity_id key,
+                            const void *value_ptr);
 
-#define component_store_insert(store, key, value)                              \
-    do {                                                                       \
-        typeof(value) __temp_value_copy__ = value;                             \
-        _component_store_insert(store, key, &__temp_value_copy__);             \
-    } while (0)
+void component_store_remove(ComponentStore *store, entity_id key);
 
-void component_store_print(const component_store *store);
+void component_store_print(const ComponentStore *store);
+
+void *component_store_find(const ComponentStore *store, entity_id key);
 
 #endif // COMPONENT_STORE_H

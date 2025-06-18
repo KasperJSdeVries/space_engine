@@ -21,19 +21,25 @@ void *_darray_push(void *array, const void *value_ptr);
 
 #define darray_push(array, value)                                              \
     do {                                                                       \
-        typeof(value) __temp_value_copy__ = value;                             \
+        typeof(*array) __temp_value_copy__ = value;                            \
         array = _darray_push(array, &__temp_value_copy__);                     \
     } while (0)
 
 void darray_pop(void *array, void *out_value_ptr);
 
+void darray_pop_front(void *array, void *out_value_ptr);
+
 void *_darray_insert_at(void *array, u64 index, const void *value_ptr);
 
 #define darray_insert_at(array, index, value)                                  \
     do {                                                                       \
-        typeof(value) __temp_value_copy__ = value;                             \
+        typeof(*array) __temp_value_copy__ = value;                            \
         array = _darray_insert_at(array, index, &__temp_value_copy__);         \
     } while (0)
+
+void darray_remove_at(void *array, u64 index);
+
+void darray_remove_at_sorted(void *array, u64 index);
 
 void darray_clear(void *array);
 

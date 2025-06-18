@@ -7,9 +7,9 @@ typedef struct {
     u32 count;
     const char **names;
     u64 *sizes;
-} query;
+} Query;
 
-query _query_new(const char *first, ...);
+Query _query_new(const char *first, ...);
 
 // Helper macro to stringify each argument
 #define STRINGIFY(x) (#x), (u64)(sizeof(x))
