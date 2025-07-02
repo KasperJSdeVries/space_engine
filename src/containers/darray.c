@@ -17,7 +17,16 @@ void *_darray_new(u64 length, u64 stride) {
     u64 array_size = length * stride;
 
     void *new_array = malloc(header_size + array_size);
+    // LOG_DEBUG("new darray at: %p, with { length: %lu, stride: %lu }",
+    //           new_array,
+    //           length,
+    //           stride);
     memset(new_array, 0, header_size + array_size);
+
+    if (length == 0) {
+        LOG_FATAL("_darray_new called with length of 0");
+        exit(EXIT_FAILURE);
+    }
 
     darray_header *header = new_array;
     header->capacity = length;
@@ -117,6 +126,26 @@ void *_darray_insert_at(void *array, u64 index, const void *value_ptr) {
     return array;
 }
 
+void *_darray_duplicate(u64 stride, void *array) {
+    u64 header_size = sizeof(darray_header);
+    darray_header *source_header = (darray_header *)((u8 *)array - header_size);
+
+    ASSERT_MSG(stride == source_header->stride,
+               "_darray_duplicate: target and source stride mismatch.");
+
+    void *copy = _darray_new(source_header->capacity, stride);
+    darray_header *target_header = (darray_header *)((u8 *)copy - header_size);
+    ASSERT_MSG(target_header->capacity == source_header->capacity,
+               "capacity mismatch while duplicating darray.");
+
+    target_header->stride = source_header->stride;
+    target_header->length = source_header->length;
+
+    memcpy(copy, array, target_header->capacity * target_header->stride);
+
+    return copy;
+}
+
 void darray_remove_at(void *array, u64 index) {
     ASSERT_DEBUG(array != NULL);
 
@@ -145,9 +174,28 @@ void darray_remove_at_sorted(void *array, u64 index) {
     darray_length_set(array, header->length - 1);
 }
 
+void *_darray_append(void *dst_array, const void *src_array) {
+    ASSERT_MSG(darray_stride(src_array) == darray_stride(dst_array),
+               "trying to append array with different stride");
+
+    while (darray_capacity(dst_array) <
+           darray_length(dst_array) + darray_length(src_array)) {
+        dst_array = _darray_resize(dst_array);
+    }
+
+    u64 src_addr = (u64)src_array;
+    u64 dst_addr =
+        (u64)dst_array + darray_length(dst_array) * darray_stride(dst_array);
+    memcpy((void *)dst_addr, (void *)src_addr, darray_size(src_array));
+    darray_length_set(dst_array,
+                      darray_length(dst_array) + darray_length(src_array));
+
+    return dst_array;
+}
+
 void darray_clear(void *array) { darray_length_set(array, 0); }
 
-u64 darray_length(void *array) {
+u64 darray_length(const void *array) {
     u64 header_size = sizeof(darray_header);
     darray_header *header = (darray_header *)((u8 *)array - header_size);
     return header->length;
@@ -159,17 +207,17 @@ void darray_length_set(void *array, u64 length) {
     header->length = length;
 }
 
-u64 darray_stride(void *array) {
+u64 darray_stride(const void *array) {
     u64 header_size = sizeof(darray_header);
     darray_header *header = (darray_header *)((u8 *)array - header_size);
     return header->stride;
 }
 
-u64 darray_size(void *array) {
+u64 darray_size(const void *array) {
     return darray_length(array) * darray_stride(array);
 }
 
-u64 darray_capacity(void *array) {
+u64 darray_capacity(const void *array) {
     u64 header_size = sizeof(darray_header);
     darray_header *header = (darray_header *)((u8 *)array - header_size);
     return header->capacity;

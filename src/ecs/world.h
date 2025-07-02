@@ -9,6 +9,7 @@
 typedef struct {
     darray(ComponentStore) component_stores;
     darray(entity_id) free_ids;
+    darray(SystemInfo) systems;
     entity_id next_id;
 } World;
 
@@ -58,6 +59,8 @@ void *_world_get_component(const World *world,
 #define world_get_component(world, entity, type)                               \
     (type *)_world_get_component(world, entity, #type)
 
-void world_add_system(World *world, System system);
+void world_add_system(World *world, SystemInfo system);
+
+void world_run(World *world);
 
 #endif // ECS_WORLD_H

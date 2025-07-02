@@ -8,9 +8,9 @@ typedef enum {
     LOG_LEVEL_INFO,
     LOG_LEVEL_DEBUG,
     LOG_LEVEL_TRACE,
-} log_level;
+} LogLevel;
 
-void __attribute__((format(printf, 2, 3))) _log_output(log_level level,
+void __attribute__((format(printf, 2, 3))) _log_output(LogLevel level,
                                                        char *message,
                                                        ...);
 
@@ -20,6 +20,7 @@ void __attribute__((format(printf, 2, 3))) _log_output(log_level level,
 #define LOG_INFO(...) _log_output(LOG_LEVEL_INFO, __VA_ARGS__)
 #define LOG_DEBUG(...) _log_output(LOG_LEVEL_DEBUG, __VA_ARGS__)
 #define LOG_TRACE(...) _log_output(LOG_LEVEL_TRACE, __VA_ARGS__)
+#define LOG(level, ...) _log_output(level, __VA_ARGS__)
 
 #define TODO(message)                                                          \
     LOG_FATAL("TODO at (%s:%d): %s\n", __FILE__, __LINE__, message)

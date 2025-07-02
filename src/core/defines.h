@@ -33,6 +33,14 @@
     #define STATIC_ASSERT static_assert
 #endif
 
+#if __has_attribute(__fallthrough__)
+    #define fallthrough __attribute__((__fallthrough__))
+#else
+    #define fallthrough                                                        \
+        do {                                                                   \
+        } while (0)
+#endif
+
 typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
@@ -65,7 +73,7 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 byte.");
 #define atomic _Atomic
 
 typedef _Bool b8;
-typedef int b32;
+typedef unsigned int b32;
 
 #define true 1
 #define false 0
@@ -75,5 +83,7 @@ STATIC_ASSERT(sizeof(b32) == 4, "Expected b32 to be 4 byte.");
 
 #define CLAMP(val, min, max)                                                   \
     (((val) < (min)) ? (min) : (((val) > (max)) ? (max) : (val)))
+#define MAX(a, b) ((b) < (a) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 #endif // SE_DEFINES_H

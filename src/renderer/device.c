@@ -1,263 +1,157 @@
 #include "device.h"
 
-#include "instance.h"
-#include "swapchain.h"
-
-#include "core/assert.h"
+#include "containers/darray.h"
 #include "core/defines.h"
 #include "core/logging.h"
-
-#include <vulkan/vulkan_core.h>
+#include "renderer/instance.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-static const char *device_extensions[] = {
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-    VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
-    VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
-    VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
-static const u32 device_extension_count = ARRAY_SIZE(device_extensions);
+static u32 find_queue(darray(VkQueueFamilyProperties) queue_families,
+                      const char *name,
+                      VkQueueFlags required_bits,
+                      VkQueueFlags excluded_bits);
+static void check_required_extensions(VkPhysicalDevice device,
+                                      darray(const char *) required_extensions);
 
-static i32 rank_physical_device(VkPhysicalDevice device, VkSurfaceKHR surface);
-static b8 check_device_extension_support(VkPhysicalDevice device);
+Device device_new(VkPhysicalDevice physical_device,
+                  const Surface *surface,
+                  darray(const char *) required_extensions,
+                  VkPhysicalDeviceFeatures device_features,
+                  const void *next_device_features) {
+    check_required_extensions(physical_device, required_extensions);
 
-b8 device_create(const struct instance *instance,
-                 const struct surface *surface,
-                 struct device *device) {
-    u32 physical_device_count;
-    (void)vkEnumeratePhysicalDevices(instance->handle,
-                                     &physical_device_count,
-                                     NULL);
+    u32 queue_family_count;
+    vkGetPhysicalDeviceQueueFamilyProperties(physical_device,
+                                             &queue_family_count,
+                                             NULL);
+    VkQueueFamilyProperties queue_family_properties[queue_family_count];
+    vkGetPhysicalDeviceQueueFamilyProperties(physical_device,
+                                             &queue_family_count,
+                                             queue_family_properties);
+    darray(VkQueueFamilyProperties) queue_families =
+        darray_new(VkQueueFamilyProperties);
+    for (u32 i = 0; i < queue_family_count; i++) {
+        darray_push(queue_families, queue_family_properties[i]);
+    }
 
-    ASSERT(physical_device_count > 0);
-
-    VkPhysicalDevice physical_devices[physical_device_count];
-    (void)vkEnumeratePhysicalDevices(instance->handle,
-                                     &physical_device_count,
-                                     physical_devices);
-
-    LOG_INFO("Choosing physical device from:");
-    i32 highest_score = -1;
-    for (u32 i = 0; i < physical_device_count; i++) {
-        VkPhysicalDeviceProperties properties;
-        vkGetPhysicalDeviceProperties(physical_devices[i], &properties);
-
-        i32 score = rank_physical_device(physical_devices[i], surface->handle);
-
-        LOG_INFO("%d: %s, score = %d", i, properties.deviceName, score);
-        if (score > highest_score) {
-            highest_score = score;
-            device->physical_device = physical_devices[i];
+    u32 graphics_family =
+        find_queue(queue_families, "graphics", VK_QUEUE_GRAPHICS_BIT, 0);
+    u32 compute_family = find_queue(queue_families,
+                                    "compute",
+                                    VK_QUEUE_COMPUTE_BIT,
+                                    VK_QUEUE_GRAPHICS_BIT);
+    u32 transfer_family =
+        find_queue(queue_families,
+                   "transfer",
+                   VK_QUEUE_TRANSFER_BIT,
+                   VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
+    b8 present_family_found = false;
+    u32 present_family = 0;
+    for (u32 i = 0; i < darray_length(queue_families); i++) {
+        VkBool32 present_support = VK_FALSE;
+        vkGetPhysicalDeviceSurfaceSupportKHR(physical_device,
+                                             i,
+                                             surface->handle,
+                                             &present_support);
+        if (present_support && queue_families[i].queueCount > 0) {
+            present_family_found = true;
+            present_family = i;
         }
     }
 
-    if (highest_score == -1) {
-        return false; // TODO: error handling with nice message
+    if (!present_family_found) {
+        LOG_FATAL("found no presentation queue");
+        exit(EXIT_FAILURE);
     }
 
-    VkPhysicalDeviceProperties properties;
-    vkGetPhysicalDeviceProperties(device->physical_device, &properties);
-    LOG_INFO("Chose device: %s", properties.deviceName);
+    u32 chosen_queue_families[] = {
+        graphics_family,
+        compute_family,
+        present_family,
+        transfer_family,
+    };
 
-    struct queue_family_indices indices =
-        find_queue_families(device->physical_device, surface->handle);
-    u32 indices_array[] = {indices.graphics_family,
-                           indices.compute_family,
-                           indices.present_family,
-                           indices.transfer_family};
-    u32 unique_indices[ARRAY_SIZE(indices_array)];
-    u32 unique_indices_count = 0;
+    darray(u32) unique_queue_families = darray_new(u32);
     for (u32 i = 0; i < 4; i++) {
         b8 exists = false;
-        for (u32 j = 0; j < unique_indices_count; j++) {
-            if (indices_array[i] == unique_indices[j]) {
+        for (u32 j = 0; j < darray_length(unique_queue_families); j++) {
+            if (chosen_queue_families[i] == unique_queue_families[j]) {
                 exists = true;
+                break;
             }
         }
         if (!exists) {
-            unique_indices[unique_indices_count++] = indices_array[i];
+            darray_push(unique_queue_families, chosen_queue_families[i]);
         }
     }
 
-    VkDeviceQueueCreateInfo queue_create_infos[unique_indices_count];
-    memset(queue_create_infos, 0, sizeof(queue_create_infos));
+    f32 queue_priority = 1.0f;
+    darray(VkDeviceQueueCreateInfo) queue_create_infos =
+        darray_new(VkDeviceQueueCreateInfo);
 
-    f32 queue_priorities[] = {1.0f};
-    for (u32 i = 0; i < unique_indices_count; i++) {
-        queue_create_infos[i].sType =
-            VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queue_create_infos[i].queueFamilyIndex = unique_indices[i];
-        queue_create_infos[i].queueCount = 1;
-        queue_create_infos[i].pQueuePriorities = queue_priorities;
+    for (u32 i = 0; i < darray_length(unique_queue_families); i++) {
+        VkDeviceQueueCreateInfo queue_create_info = {
+            .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+            .queueFamilyIndex = unique_queue_families[i],
+            .queueCount = 1,
+            .pQueuePriorities = &queue_priority,
+        };
+
+        darray_push(queue_create_infos, queue_create_info);
     }
-
-    VkPhysicalDeviceFeatures device_features = {0};
-
-    VkPhysicalDeviceAccelerationStructureFeaturesKHR accelFeature = {
-        .sType =
-            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
-    };
-
-    VkPhysicalDeviceRayTracingPipelineFeaturesKHR rtPipelineFeature = {
-        .sType =
-            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR,
-        .pNext = &accelFeature,
-    };
 
     VkDeviceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-        .queueCreateInfoCount = unique_indices_count,
+        .pNext = next_device_features,
+        .queueCreateInfoCount = darray_length(queue_create_infos),
         .pQueueCreateInfos = queue_create_infos,
         .pEnabledFeatures = &device_features,
-        .enabledExtensionCount = device_extension_count,
-        .ppEnabledExtensionNames = device_extensions,
-#if ENABLE_VALIDATION_LAYERS
-        .enabledLayerCount = validation_layer_count,
-        .ppEnabledLayerNames = validation_layers,
-#endif
-        .pNext = &rtPipelineFeature,
+        .enabledLayerCount =
+            darray_length(surface->instance->validation_layers),
+        .ppEnabledLayerNames = surface->instance->validation_layers,
+        .enabledExtensionCount = darray_length(required_extensions),
+        .ppEnabledExtensionNames = required_extensions,
     };
 
-    VkResult result = vkCreateDevice(device->physical_device,
-                                     &create_info,
-                                     NULL,
-                                     &device->handle);
-    if (result != VK_SUCCESS) {
-        return false; // TODO: Error handling with nice message
-    }
+    Device self = {
+        .physical_device = physical_device,
+        .surface = surface,
 
-    vkGetDeviceQueue(device->handle,
-                     indices.graphics_family,
-                     0,
-                     &device->graphics_queue);
-    vkGetDeviceQueue(device->handle,
-                     indices.present_family,
-                     0,
-                     &device->present_queue);
-    vkGetDeviceQueue(device->handle,
-                     indices.transfer_family,
-                     0,
-                     &device->transfer_queue);
-    vkGetDeviceQueue(device->handle,
-                     indices.compute_family,
-                     0,
-                     &device->compute_queue);
-
-    return true;
-}
-
-void device_destroy(struct device *device) {
-    vkDestroyDevice(device->handle, NULL);
-}
-
-b8 queue_familiy_indices_are_complete(struct queue_family_indices indices) {
-    return (indices.supported_families & 0xf) == 0xf;
-}
-
-struct queue_family_indices find_queue_families(VkPhysicalDevice device,
-                                                VkSurfaceKHR surface) {
-    struct queue_family_indices indices;
-
-    VkPhysicalDeviceProperties properties;
-    vkGetPhysicalDeviceProperties(device, &properties);
-    LOG_INFO("Queue family properties for: %s", properties.deviceName);
-
-    u32 queue_family_count;
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, NULL);
-    VkQueueFamilyProperties queue_families[queue_family_count];
-    vkGetPhysicalDeviceQueueFamilyProperties(device,
-                                             &queue_family_count,
-                                             queue_families);
-
-    LOG_INFO("                 Graphics | Compute | Transfer | Present");
-    for (u32 i = 0; i < queue_family_count; i++) {
-        if (!(indices.supported_families & QUEUE_FAMILY_SUPPORT_GRAPHICS_BIT) &&
-            (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
-            indices.graphics_family = i;
-            indices.supported_families |= QUEUE_FAMILY_SUPPORT_GRAPHICS_BIT;
-        }
-
-        if (!(indices.supported_families & QUEUE_FAMILY_SUPPORT_COMPUTE_BIT) &&
-            (queue_families[i].queueFlags & VK_QUEUE_COMPUTE_BIT)) {
-            indices.graphics_family = i;
-            indices.supported_families |= QUEUE_FAMILY_SUPPORT_COMPUTE_BIT;
-        }
-
-        if (!(indices.supported_families & QUEUE_FAMILY_SUPPORT_TRANSFER_BIT) &&
-            (queue_families[i].queueFlags & VK_QUEUE_TRANSFER_BIT)) {
-            indices.graphics_family = i;
-            indices.supported_families |= QUEUE_FAMILY_SUPPORT_TRANSFER_BIT;
-        }
-
-        VkBool32 present_support = VK_FALSE;
-        vkGetPhysicalDeviceSurfaceSupportKHR(device,
-                                             i,
-                                             surface,
-                                             &present_support);
-        if (!(indices.supported_families & QUEUE_FAMILY_SUPPORT_PRESENT_BIT) &&
-            present_support) {
-            indices.present_family = i;
-            indices.supported_families |= QUEUE_FAMILY_SUPPORT_PRESENT_BIT;
-        }
-
-        LOG_INFO(
-            "Queue family #%1d: %s | %s | %s | %s",
-            i,
-            (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) ? "   x    "
-                                                                   : "        ",
-            (queue_families[i].queueFlags & VK_QUEUE_COMPUTE_BIT) ? "   x   "
-                                                                  : "       ",
-            (queue_families[i].queueFlags & VK_QUEUE_TRANSFER_BIT) ? "   x    "
-                                                                   : "        ",
-            present_support ? "   x   " : "       ");
-    }
-
-    return indices;
-}
-
-static i32 rank_physical_device(VkPhysicalDevice device, VkSurfaceKHR surface) {
-    VkPhysicalDeviceProperties properties;
-    vkGetPhysicalDeviceProperties(device, &properties);
-    VkPhysicalDeviceFeatures features;
-    vkGetPhysicalDeviceFeatures(device, &features);
-
-    struct queue_family_indices indices = find_queue_families(device, surface);
-    if (!queue_familiy_indices_are_complete(indices)) {
-        return -1;
-    }
-
-    if (!check_device_extension_support(device)) {
-        return -1;
-    }
-
-    struct swapchain_support_details swapchain_support =
-        query_swapchain_support(device, surface);
-    if (swapchain_support.format_count == 0 ||
-        swapchain_support.present_mode_count == 0) {
-        return -1;
-    }
-    swapchain_support_details_destroy(&swapchain_support);
-
-    int value = 0;
-
-    switch (properties.deviceType) {
-    case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
-        value += 10000;
-        break;
-    case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
-        value += 5000;
-        break;
-    default:
-        break;
+        .graphics_family_index = graphics_family,
+        .compute_family_index = compute_family,
+        .present_family_index = present_family,
+        .transfer_family_index = transfer_family,
     };
 
-    value += properties.limits.maxImageDimension2D;
+    vulkan_check(
+        vkCreateDevice(physical_device, &create_info, NULL, &self.handle),
+        "create logical device");
 
-    return value;
+    vkGetDeviceQueue(self.handle, graphics_family, 0, &self.graphics_queue);
+    vkGetDeviceQueue(self.handle, compute_family, 0, &self.compute_queue);
+    vkGetDeviceQueue(self.handle, present_family, 0, &self.present_queue);
+    vkGetDeviceQueue(self.handle, transfer_family, 0, &self.transfer_queue);
+
+    return self;
 }
 
-static b8 check_device_extension_support(VkPhysicalDevice device) {
+void device_destroy(Device *device) {
+    if (device->handle != NULL) {
+        vkDestroyDevice(device->handle, NULL);
+        device->handle = NULL;
+    }
+}
+
+void device_wait_idle(const Device *device) {
+    vkDeviceWaitIdle(device->handle);
+}
+
+static void check_required_extensions(VkPhysicalDevice device,
+                                      darray(const char *)
+                                          required_extensions) {
     u32 extension_count;
     vkEnumerateDeviceExtensionProperties(device, NULL, &extension_count, NULL);
     VkExtensionProperties available_extensions[extension_count];
@@ -266,20 +160,40 @@ static b8 check_device_extension_support(VkPhysicalDevice device) {
                                          &extension_count,
                                          available_extensions);
 
-    for (u32 i = 0; i < device_extension_count; i++) {
+    b8 missing_extension = false;
+    for (u32 i = 0; i < darray_length(required_extensions); i++) {
         b8 found = false;
         for (u32 j = 0; j < extension_count; j++) {
             if (strncmp(available_extensions[j].extensionName,
-                        device_extensions[i],
+                        required_extensions[i],
                         256) == 0) {
                 found = true;
                 break;
             }
         }
         if (!found) {
-            return false;
+            missing_extension = true;
+            LOG_FATAL("missing required extension: %s", required_extensions[i]);
         }
     }
 
-    return true;
+    if (missing_extension) {
+        exit(EXIT_FAILURE);
+    }
+}
+
+static u32 find_queue(darray(VkQueueFamilyProperties) queue_families,
+                      const char *name,
+                      VkQueueFlags required_bits,
+                      VkQueueFlags excluded_bits) {
+    for (u32 i = 0; i < darray_length(queue_families); i++) {
+        VkQueueFamilyProperties queue_family = queue_families[i];
+        if (queue_family.queueCount > 0 &&
+            queue_family.queueFlags & required_bits &&
+            !(queue_family.queueFlags & excluded_bits))
+            return i;
+    }
+
+    LOG_FATAL("found no matching %s queue", name);
+    exit(EXIT_FAILURE);
 }

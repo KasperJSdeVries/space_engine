@@ -37,20 +37,28 @@ void *_darray_insert_at(void *array, u64 index, const void *value_ptr);
         array = _darray_insert_at(array, index, &__temp_value_copy__);         \
     } while (0)
 
+void *_darray_duplicate(u64 stride, void *array);
+
+#define darray_duplicate(type, array)                                          \
+    (type *)_darray_duplicate(sizeof(type), array)
+
 void darray_remove_at(void *array, u64 index);
 
 void darray_remove_at_sorted(void *array, u64 index);
 
+void *_darray_append(void *dst_array, const void *src_array);
+#define darray_append(dst, src) dst = _darray_append(dst, src)
+
 void darray_clear(void *array);
 
-u64 darray_length(void *array);
+u64 darray_length(const void *array);
 
 void darray_length_set(void *array, u64 length);
 
-u64 darray_stride(void *array);
+u64 darray_stride(const void *array);
 
-u64 darray_size(void *array);
+u64 darray_size(const void *array);
 
-u64 darray_capacity(void *array);
+u64 darray_capacity(const void *array);
 
 #endif // CORE_DARRAY_H

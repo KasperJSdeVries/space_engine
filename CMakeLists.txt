@@ -11,7 +11,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR})
 
-add_subdirectory(dist)
+add_subdirectory(assets)
 add_subdirectory(src)
 add_subdirectory(client)
 

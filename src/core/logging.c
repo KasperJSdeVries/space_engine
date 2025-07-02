@@ -4,7 +4,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-void _log_output(log_level level, char *message, ...) {
+void _log_output(LogLevel level, char *message, ...) {
     const char *level_strings[] =
         {"[FATAL]", "[ERROR]", "[WARN]", "[INFO]", "[DEBUG]", "[TRACE]"};
     const char *color_strings[] =

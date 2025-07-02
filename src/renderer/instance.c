@@ -1,163 +1,163 @@
 #include "instance.h"
 
+#include "containers/darray.h"
 #include "core/defines.h"
 #include "core/logging.h"
+#include "renderer/vulkan.h"
+#include "renderer/window.h"
+#include "vulkan/vulkan_core.h"
 
-#include <vulkan/vulkan_xlib.h>
-
+#include <stdlib.h>
 #include <string.h>
 
-#if ENABLE_VALIDATION_LAYERS
-static const char *instance_extensions[] = {VK_EXT_DEBUG_UTILS_EXTENSION_NAME};
-static const u32 instance_extension_count =
-    sizeof(instance_extensions) / sizeof(*instance_extensions);
+static void check_vulkan_minimum_version(u32 min_version);
+static void check_vulkan_validation_layer_support(darray(const char *)
+                                                      validation_layers);
 
-static VKAPI_ATTR VkBool32 VKAPI_CALL debug_messenger_callback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-    VkDebugUtilsMessageTypeFlagsEXT message_type,
-    const VkDebugUtilsMessengerCallbackDataEXT *callback_data,
-    void *user_data);
-#endif
+Instance instance_new(const Window *window,
+                      darray(const char *) validation_layers,
+                      u32 vulkan_version) {
+    Instance self = {
+        .window = window,
+        .validation_layers = validation_layers,
+    };
 
-b8 instance_create(struct instance *instance) {
+    check_vulkan_minimum_version(vulkan_version);
+
+    darray(const char *) extensions = window_get_required_instance_extensions();
+
+    check_vulkan_validation_layer_support(validation_layers);
+
+    if (darray_length(validation_layers) > 0) {
+        darray_push(extensions, VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    }
+
     VkApplicationInfo app_info = {
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-        .pApplicationName = "space game",
-        .applicationVersion = VK_MAKE_API_VERSION(0, 0, 1, 0),
-        .pEngineName = "space engine",
-        .engineVersion = VK_MAKE_API_VERSION(0, 0, 1, 0),
-        .apiVersion = VK_API_VERSION_1_3,
+        .pApplicationName = "SpaceGame",
+        .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
+        .pEngineName = "No Engine",
+        .engineVersion = VK_MAKE_VERSION(1, 0, 0),
+        .apiVersion = vulkan_version,
     };
-
-#if ENABLE_VALIDATION_LAYERS
-    VkDebugUtilsMessengerCreateInfoEXT debug_messenger_create_info = {
-        .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-        .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
-                           VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-                           VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-                           VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
-        .messageType =
-            VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT,
-        .pfnUserCallback = debug_messenger_callback,
-    };
-#endif // ENABLE_VALIDATION_LAYERS
-
-    static const char *required_extensions[] = {
-        VK_KHR_SURFACE_EXTENSION_NAME,
-        VK_KHR_XLIB_SURFACE_EXTENSION_NAME};
-    static const u32 required_extension_count = ARRAY_SIZE(required_extensions);
-
-#if ENABLE_VALIDATION_LAYERS
-    const char *extensions[required_extension_count + instance_extension_count];
-#else
-    const char *extensions[required_extension_count];
-#endif
-
-    memcpy(extensions, required_extensions, sizeof(required_extensions));
-
-#if ENABLE_VALIDATION_LAYERS
-    for (u32 i = 0; i < instance_extension_count; i++) {
-        extensions[required_extension_count + i] = instance_extensions[i];
-    }
-#endif
 
     VkInstanceCreateInfo instance_create_info = {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pApplicationInfo = &app_info,
+        .enabledExtensionCount = darray_length(extensions),
         .ppEnabledExtensionNames = extensions,
-#if ENABLE_VALIDATION_LAYERS
-        .enabledExtensionCount =
-            required_extension_count + instance_extension_count,
+        .enabledLayerCount = darray_length(validation_layers),
         .ppEnabledLayerNames = validation_layers,
-        .enabledLayerCount = validation_layer_count,
-        .pNext = &debug_messenger_create_info,
-#else
-        .enabledExtensionCount = required_extension_count,
-#endif // ENABLE_VALIDATION_LAYERS
     };
 
-    if (vkCreateInstance(&instance_create_info, NULL, &instance->handle) !=
-        VK_SUCCESS) {
-        return false; // TODO: Better error handling
+    vulkan_check(vkCreateInstance(&instance_create_info, NULL, &self.handle),
+                 "create instance");
+
+    darray_destroy(extensions);
+
+    return self;
+}
+
+void instance_destroy(Instance *instance) {
+    if (instance->handle != NULL) {
+        vkDestroyInstance(instance->handle, NULL);
+        instance->handle = NULL;
     }
 
-#if ENABLE_VALIDATION_LAYERS
-    if (vkCreateDebugUtilsMessengerEXT(instance->handle,
-                                       &debug_messenger_create_info,
-                                       NULL,
-                                       &instance->debug_messenger) !=
-        VK_SUCCESS) {
-        return false; // TODO: better error handling
+    darray_destroy(instance->validation_layers);
+}
+
+darray(VkExtensionProperties) instance_extensions(void) {
+    darray(VkExtensionProperties) da = darray_new(VkExtensionProperties);
+
+    u32 extension_count;
+    vkEnumerateInstanceExtensionProperties(NULL, &extension_count, NULL);
+    VkExtensionProperties extensions[extension_count];
+    vkEnumerateInstanceExtensionProperties(NULL, &extension_count, extensions);
+
+    for (u32 i = 0; i < extension_count; i++) {
+        darray_push(da, extensions[i]);
     }
-#endif // ENABLE_VALIDATION_LAYERS
 
-    return true;
+    return da;
 }
 
-void instance_destroy(struct instance *instance) {
-#if ENABLE_VALIDATION_LAYERS
-    vkDestroyDebugUtilsMessengerEXT(instance->handle,
-                                    instance->debug_messenger,
-                                    NULL);
-#endif // ENABLE_VALIDATION_LAYERS
-    vkDestroyInstance(instance->handle, NULL);
-}
+darray(VkLayerProperties) instance_layers(void) {
+    darray(VkLayerProperties) da = darray_new(VkLayerProperties);
 
-#if ENABLE_VALIDATION_LAYERS
-static VKAPI_ATTR VkBool32 VKAPI_CALL debug_messenger_callback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-    VkDebugUtilsMessageTypeFlagsEXT message_type,
-    const VkDebugUtilsMessengerCallbackDataEXT *callback_data,
-    void *user_data) {
-    UNUSED(user_data);
-    UNUSED(message_type);
+    u32 layer_count;
+    vkEnumerateInstanceLayerProperties(&layer_count, NULL);
+    VkLayerProperties layers[layer_count];
+    vkEnumerateInstanceLayerProperties(&layer_count, layers);
 
-    switch (severity) {
-    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
-        LOG_ERROR("%s", callback_data->pMessage);
-        break;
-    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
-        LOG_WARN("%s", callback_data->pMessage);
-        break;
-    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
-        LOG_INFO("%s", callback_data->pMessage);
-        break;
-    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
-        LOG_TRACE("%s", callback_data->pMessage);
-        break;
-    default:
-        break;
-    };
-
-    return VK_FALSE;
-}
-
-VkResult vkCreateDebugUtilsMessengerEXT(
-    VkInstance instance,
-    const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
-    const VkAllocationCallbacks *pAllocator,
-    VkDebugUtilsMessengerEXT *pMessenger) {
-    PFN_vkCreateDebugUtilsMessengerEXT function =
-        (PFN_vkCreateDebugUtilsMessengerEXT)
-            vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-    if (function != NULL) {
-        return function(instance, pCreateInfo, pAllocator, pMessenger);
-    } else {
-        return VK_ERROR_EXTENSION_NOT_PRESENT;
+    for (u32 i = 0; i < layer_count; i++) {
+        darray_push(da, layers[i]);
     }
+
+    return da;
 }
 
-void vkDestroyDebugUtilsMessengerEXT(VkInstance instance,
-                                     VkDebugUtilsMessengerEXT messenger,
-                                     const VkAllocationCallbacks *pAllocator) {
-    PFN_vkDestroyDebugUtilsMessengerEXT function =
-        (PFN_vkDestroyDebugUtilsMessengerEXT)
-            vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-    if (function != NULL) {
-        function(instance, messenger, pAllocator);
+darray(VkPhysicalDevice) instance_physical_devices(const Instance *this) {
+    darray(VkPhysicalDevice) da = darray_new(VkPhysicalDevice);
+
+    u32 device_count;
+    vkEnumeratePhysicalDevices(this->handle, &device_count, NULL);
+    VkPhysicalDevice physical_devices[device_count];
+    vkEnumeratePhysicalDevices(this->handle, &device_count, physical_devices);
+
+    for (u32 i = 0; i < device_count; i++) {
+        darray_push(da, physical_devices[i]);
+    }
+
+    if (darray_length(da) == 0) {
+        LOG_FATAL("found no Vulkan physical devices");
+
+        exit(EXIT_FAILURE);
+    }
+
+    return da;
+}
+
+static void check_vulkan_minimum_version(u32 min_version) {
+    u32 version;
+    vulkan_check(vkEnumerateInstanceVersion(&version),
+                 "query instance version");
+
+    if (min_version > version) {
+        LOG_FATAL("minimum required version not found (required: %d.%d.%d, "
+                  "found: %d.%d.%d)",
+                  VK_VERSION_MAJOR(min_version),
+                  VK_VERSION_MINOR(min_version),
+                  VK_VERSION_PATCH(min_version),
+                  VK_VERSION_MAJOR(version),
+                  VK_VERSION_MINOR(version),
+                  VK_VERSION_PATCH(version));
+
+        exit(EXIT_FAILURE);
     }
 }
-#endif // ENABLE_VALIDATION_LAYERS
+
+static void check_vulkan_validation_layer_support(darray(const char *)
+                                                      validation_layers) {
+    u32 available_layer_count;
+    vkEnumerateInstanceLayerProperties(&available_layer_count, NULL);
+    VkLayerProperties available_layers[available_layer_count];
+    vkEnumerateInstanceLayerProperties(&available_layer_count,
+                                       available_layers);
+
+    for (u32 i = 0; i < darray_length(validation_layers); i++) {
+        b8 found = false;
+        for (u32 j = 0; j < available_layer_count; j++) {
+            if (strcmp(validation_layers[i], available_layers[j].layerName) ==
+                0) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            LOG_FATAL("could not find the requested validation layer: '%s'",
+                      validation_layers[i]);
+            exit(EXIT_FAILURE);
+        }
+    }
+}

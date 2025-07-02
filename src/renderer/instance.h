@@ -1,12 +1,22 @@
 #ifndef RENDER_INSTANCE_H
 #define RENDER_INSTANCE_H
 
-#include "types.h"
+#include "containers/darray.h"
+#include "renderer/window.h"
 
-static const char *validation_layers[] = {"VK_LAYER_KHRONOS_validation"};
-static const u32 validation_layer_count = sizeof(validation_layers) / sizeof(*validation_layers);
+typedef struct {
+    VkInstance handle;
+    const Window *window;
+    darray(const char *) validation_layers;
+} Instance;
 
-b8 instance_create(struct instance* instance);
-void instance_destroy(struct instance* instance);
+Instance instance_new(const Window *window,
+                      darray(const char *) validation_layers,
+                      u32 vulkan_version);
+void instance_destroy(Instance *instance);
 
-#endif  // RENDER_INSTANCE_H
+darray(VkExtensionProperties) instance_extensions(void);
+darray(VkLayerProperties) instance_layers(void);
+darray(VkPhysicalDevice) instance_physical_devices(const Instance *this);
+
+#endif // RENDER_INSTANCE_H

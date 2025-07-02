@@ -29,7 +29,7 @@
         vulkan-headers
         vulkan-loader
         vulkan-validation-layers
-        xorg.libX11
+        glfw
       ];
 
       VK_LAYER_PATH = "${pkgs.vulkan-validation-layers}/share/vulkan/explicit_layer.d";

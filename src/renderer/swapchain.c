@@ -1,132 +1,56 @@
 #include "swapchain.h"
 
-#include "device.h"
-#include "image.h"
-#include "renderer/window.h"
-#include "types.h"
-
-#include "core/assert.h"
+#include "containers/darray.h"
 #include "core/defines.h"
-
+#include "core/logging.h"
+#include "renderer/device.h"
+#include "renderer/surface.h"
+#include "renderer/window.h"
 #include "vulkan/vulkan_core.h"
 
+#include <stdint.h>
 #include <stdlib.h>
 
-struct swapchain_support_details query_swapchain_support(
-    VkPhysicalDevice device,
-    VkSurfaceKHR surface) {
-    struct swapchain_support_details details;
+typedef struct {
+    VkSurfaceCapabilitiesKHR capabilities;
+    darray(VkSurfaceFormatKHR) formats;
+    darray(VkPresentModeKHR) present_modes;
+} SupportDetails;
 
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device,
-                                              surface,
-                                              &details.capabilities);
+static SupportDetails query_swapchain_support(VkPhysicalDevice physical_device,
+                                              VkSurfaceKHR surface);
+static void support_details_destroy(SupportDetails *support_details);
+static VkSurfaceFormatKHR choose_swap_surface_format(darray(VkSurfaceFormatKHR)
+                                                         formats);
+static VkPresentModeKHR choose_swap_present_mode(darray(VkPresentModeKHR)
+                                                     present_modes,
+                                                 VkPresentModeKHR present_mode);
+static VkExtent2D choose_swap_extent(const Window *window,
+                                     VkSurfaceCapabilitiesKHR capabilities);
+static u32 choose_image_count(VkSurfaceCapabilitiesKHR capabilities);
 
-    vkGetPhysicalDeviceSurfaceFormatsKHR(device,
-                                         surface,
-                                         &details.format_count,
-                                         NULL);
-    if (details.format_count != 0) {
-        details.formats =
-            calloc(details.format_count, sizeof(VkSurfaceFormatKHR));
-        vkGetPhysicalDeviceSurfaceFormatsKHR(device,
-                                             surface,
-                                             &details.format_count,
-                                             details.formats);
+Swapchain swapchain_new(const Device *device, VkPresentModeKHR present_mode) {
+    Swapchain self = {
+        .device = device,
+    };
+
+    SupportDetails details = query_swapchain_support(device->physical_device,
+                                                     device->surface->handle);
+    if (darray_length(details.formats) == 0 ||
+        darray_length(details.present_modes) == 0) {
+        LOG_FATAL("empty swapchain support");
+        exit(EXIT_FAILURE);
     }
 
-    vkGetPhysicalDeviceSurfacePresentModesKHR(device,
-                                              surface,
-                                              &details.present_mode_count,
-                                              NULL);
-    if (details.present_mode_count != 0) {
-        details.present_modes =
-            calloc(details.present_mode_count, sizeof(VkPresentModeKHR));
-        vkGetPhysicalDeviceSurfacePresentModesKHR(device,
-                                                  surface,
-                                                  &details.present_mode_count,
-                                                  details.present_modes);
-    }
-
-    return details;
-}
-
-void swapchain_support_details_destroy(
-    struct swapchain_support_details *details) {
-    free(details->formats);
-    details->formats = NULL;
-    free(details->present_modes);
-    details->present_modes = NULL;
-}
-
-VkSurfaceFormatKHR choose_swap_surface_format(
-    u32 available_format_count,
-    const VkSurfaceFormatKHR *available_formats) {
-    for (u32 i = 0; i < available_format_count; i++) {
-        if (available_formats[i].format == VK_FORMAT_B8G8R8A8_SRGB &&
-            available_formats[i].colorSpace ==
-                VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
-            return available_formats[i];
-        }
-    }
-
-    return available_formats[0];
-}
-
-VkPresentModeKHR choose_swap_present_mode(
-    u32 available_present_mode_count,
-    const VkPresentModeKHR *available_present_modes) {
-    for (u32 i = 0; i < available_present_mode_count; i++) {
-        if (available_present_modes[i] == VK_PRESENT_MODE_IMMEDIATE_KHR) {
-            return available_present_modes[i];
-        }
-        if (available_present_modes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
-            return available_present_modes[i];
-        }
-    }
-
-    return VK_PRESENT_MODE_FIFO_KHR;
-}
-
-VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR *capabilities,
-                              const struct window *window) {
-    if (capabilities->currentExtent.width != UINT32_MAX) {
-        return capabilities->currentExtent;
-    } else {
-        VkExtent2D extent;
-        window_get_framebuffer_size(window, &extent);
-
-        extent.width = CLAMP(extent.width,
-                             capabilities->minImageExtent.width,
-                             capabilities->maxImageExtent.width);
-        extent.height = CLAMP(extent.height,
-                              capabilities->minImageExtent.height,
-                              capabilities->maxImageExtent.height);
-
-        return extent;
-    }
-}
-
-b8 swapchain_create(const struct device *device,
-                    const struct surface *surface,
-                    const struct window *window,
-                    struct swapchain *swapchain) {
-    struct swapchain_support_details swapchain_support =
-        query_swapchain_support(device->physical_device, surface->handle);
+    const Surface *surface = device->surface;
+    const Window *window = surface->instance->window;
 
     VkSurfaceFormatKHR surface_format =
-        choose_swap_surface_format(swapchain_support.format_count,
-                                   swapchain_support.formats);
-    VkPresentModeKHR present_mode =
-        choose_swap_present_mode(swapchain_support.present_mode_count,
-                                 swapchain_support.present_modes);
-    VkExtent2D extent =
-        choose_swap_extent(&swapchain_support.capabilities, window);
-
-    u32 image_count = swapchain_support.capabilities.minImageCount + 1;
-    if (swapchain_support.capabilities.maxImageCount > 0 &&
-        image_count > swapchain_support.capabilities.maxImageCount) {
-        image_count = swapchain_support.capabilities.maxImageCount;
-    }
+        choose_swap_surface_format(details.formats);
+    VkPresentModeKHR actual_present_mode =
+        choose_swap_present_mode(details.present_modes, present_mode);
+    VkExtent2D extent = choose_swap_extent(window, details.capabilities);
+    u32 image_count = choose_image_count(details.capabilities);
 
     VkSwapchainCreateInfoKHR create_info = {
         .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
@@ -136,18 +60,18 @@ b8 swapchain_create(const struct device *device,
         .imageColorSpace = surface_format.colorSpace,
         .imageExtent = extent,
         .imageArrayLayers = 1,
-        .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-        .preTransform = swapchain_support.capabilities.currentTransform,
+        .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+                      VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+        .preTransform = details.capabilities.currentTransform,
         .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-        .presentMode = present_mode,
+        .presentMode = actual_present_mode,
         .clipped = VK_TRUE,
+        .oldSwapchain = NULL,
     };
 
-    struct queue_family_indices indices =
-        find_queue_families(device->physical_device, surface->handle);
-    u32 queue_family_indices[] = {indices.graphics_family,
-                                  indices.present_family};
-    if (indices.graphics_family != indices.present_family) {
+    u32 queue_family_indices[] = {device->graphics_family_index,
+                                  device->present_family_index};
+    if (device->graphics_family_index != device->present_family_index) {
         create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         create_info.queueFamilyIndexCount = 2;
         create_info.pQueueFamilyIndices = queue_family_indices;
@@ -155,110 +79,171 @@ b8 swapchain_create(const struct device *device,
         create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     }
 
-    swapchain_support_details_destroy(&swapchain_support);
+    vulkan_check(
+        vkCreateSwapchainKHR(device->handle, &create_info, NULL, &self.handle),
+        "create swapchain");
 
-    if (vkCreateSwapchainKHR(device->handle,
-                             &create_info,
-                             NULL,
-                             &swapchain->handle) != VK_SUCCESS) {
-        return false;
-    }
+    support_details_destroy(&details);
 
-    swapchain->format = surface_format.format;
-    swapchain->extent = extent;
+    self.min_image_count = image_count;
+    self.present_mode = actual_present_mode;
+    self.format = surface_format.format;
+    self.extent = extent;
+    self.images = darray_new(VkImage);
+    self.image_views = darray_new(ImageView);
 
+    u32 swap_image_count;
     vkGetSwapchainImagesKHR(device->handle,
-                            swapchain->handle,
-                            &swapchain->image_count,
+                            self.handle,
+                            &swap_image_count,
                             NULL);
-    swapchain->images = calloc(swapchain->image_count, sizeof(VkImage));
+    VkImage swap_images[swap_image_count];
     vkGetSwapchainImagesKHR(device->handle,
-                            swapchain->handle,
-                            &swapchain->image_count,
-                            swapchain->images);
+                            self.handle,
+                            &swap_image_count,
+                            swap_images);
 
-    swapchain->image_views =
-        calloc(swapchain->image_count, sizeof(VkImageView));
-    for (u32 i = 0; i < swapchain->image_count; i++) {
-        image_view_create(device,
-                          swapchain->images[i],
-                          surface_format.format,
-                          &swapchain->image_views[i]);
+    for (u32 i = 0; i < swap_image_count; i++) {
+        darray_push(self.images, swap_images[i]);
+        darray_push(self.image_views,
+                    image_view_new(device,
+                                   swap_images[i],
+                                   self.format,
+                                   VK_IMAGE_ASPECT_COLOR_BIT));
     }
 
-    return true;
+    return self;
 }
 
-void swapchain_destroy(const struct device *device,
-                       struct swapchain *swapchain) {
-    for (u32 i = 0; i < swapchain->image_count; i++) {
-        vkDestroyImageView(device->handle, swapchain->image_views[i], NULL);
+void swapchain_destroy(Swapchain *this) {
+    for (u32 i = 0; i < darray_length(this->image_views); i++) {
+        image_view_destroy(&this->image_views[i]);
     }
 
-    vkDestroySwapchainKHR(device->handle, swapchain->handle, NULL);
-    swapchain->handle = VK_NULL_HANDLE;
+    darray_destroy(this->image_views);
+    darray_destroy(this->images);
 
-    free(swapchain->images);
-    swapchain->images = NULL;
-    swapchain->image_count = 0;
+    if (this->handle != NULL) {
+        vkDestroySwapchainKHR(this->device->handle, this->handle, NULL);
+        this->handle = NULL;
+    }
 }
 
-b8 swapchain_recreate(const struct device *device,
-                      const struct surface *surface,
-                      const struct window *window,
-                      const struct renderpass *renderpass,
-                      struct swapchain *swapchain) {
-    vkDeviceWaitIdle(device->handle);
+static SupportDetails query_swapchain_support(VkPhysicalDevice physical_device,
+                                              VkSurfaceKHR surface) {
+    SupportDetails details = {0};
 
-    swapchain_framebuffers_destroy(device, swapchain);
-    swapchain_destroy(device, swapchain);
-    if (!swapchain_create(device, surface, window, swapchain)) {
-        return false;
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device,
+                                              surface,
+                                              &details.capabilities);
+
+    u32 format_count;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device,
+                                         surface,
+                                         &format_count,
+                                         NULL);
+    VkSurfaceFormatKHR formats[format_count];
+    vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device,
+                                         surface,
+                                         &format_count,
+                                         formats);
+
+    details.formats = darray_new(VkSurfaceFormatKHR);
+    for (u32 i = 0; i < format_count; i++) {
+        darray_push(details.formats, formats[i]);
     }
-    if (!swapchain_framebuffers_create(device, renderpass, swapchain)) {
-        return false;
+
+    u32 present_mode_count;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device,
+                                              surface,
+                                              &present_mode_count,
+                                              NULL);
+    VkPresentModeKHR present_modes[present_mode_count];
+    vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device,
+                                              surface,
+                                              &present_mode_count,
+                                              present_modes);
+
+    details.present_modes = darray_new(VkPresentModeKHR);
+    for (u32 i = 0; i < present_mode_count; i++) {
+        darray_push(details.present_modes, present_modes[i]);
     }
-    return true;
+
+    return details;
 }
 
-b8 swapchain_framebuffers_create(const struct device *device,
-                                 const struct renderpass *renderpass,
-                                 struct swapchain *swapchain) {
-    swapchain->framebuffers =
-        calloc(swapchain->image_count, sizeof(VkFramebuffer));
+static void support_details_destroy(SupportDetails *support_details) {
+    darray_destroy(support_details->formats);
+    darray_destroy(support_details->present_modes);
+}
 
-    for (u32 i = 0; i < swapchain->image_count; i++) {
-        VkImageView attachments[] = {
-            swapchain->image_views[i],
+static VkSurfaceFormatKHR choose_swap_surface_format(darray(VkSurfaceFormatKHR)
+                                                         formats) {
+    if (darray_length(formats) == 1 &&
+        formats[0].format == VK_FORMAT_UNDEFINED) {
+        return (VkSurfaceFormatKHR){
+            .format = VK_FORMAT_R8G8B8A8_UNORM,
+            .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
         };
+    }
 
-        VkFramebufferCreateInfo framebuffer_info = {
-            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-            .renderPass = renderpass->handle,
-            .attachmentCount = 1,
-            .pAttachments = attachments,
-            .width = swapchain->extent.width,
-            .height = swapchain->extent.height,
-            .layers = 1,
-        };
-
-        if (vkCreateFramebuffer(device->handle,
-                                &framebuffer_info,
-                                NULL,
-                                &swapchain->framebuffers[i]) != VK_SUCCESS) {
-            return false;
+    for (u32 i = 0; i < darray_length(formats); i++) {
+        VkSurfaceFormatKHR format = formats[i];
+        if (format.format == VK_FORMAT_B8G8R8A8_UNORM &&
+            format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            return format;
         }
     }
 
-    return true;
+    LOG_FATAL("found no suitable surface format");
+    exit(EXIT_FAILURE);
 }
 
-void swapchain_framebuffers_destroy(const struct device *device,
-                                    struct swapchain *swapchain) {
-    for (u32 i = 0; i < swapchain->image_count; i++) {
-        vkDestroyFramebuffer(device->handle, swapchain->framebuffers[i], NULL);
+static VkPresentModeKHR choose_swap_present_mode(
+    darray(VkPresentModeKHR) present_modes,
+    VkPresentModeKHR present_mode) {
+    switch (present_mode) {
+    case VK_PRESENT_MODE_IMMEDIATE_KHR:
+    case VK_PRESENT_MODE_MAILBOX_KHR:
+    case VK_PRESENT_MODE_FIFO_KHR:
+    case VK_PRESENT_MODE_FIFO_RELAXED_KHR:
+
+        for (u32 i = 0; i < darray_length(present_modes); i++) {
+            if (present_modes[i] == present_mode) {
+                return present_modes[i];
+            }
+        }
+
+        break;
+    default:
+        LOG_FATAL("unknown present mode");
+        exit(EXIT_FAILURE);
     }
 
-    free(swapchain->framebuffers);
-    swapchain->framebuffers = NULL;
+    return VK_PRESENT_MODE_FIFO_KHR;
+}
+
+static VkExtent2D choose_swap_extent(const Window *window,
+                                     VkSurfaceCapabilitiesKHR capabilities) {
+    if (capabilities.currentExtent.width != UINT32_MAX) {
+        return capabilities.currentExtent;
+    }
+
+    VkExtent2D actual_extent = window_framebuffer_size(window);
+
+    actual_extent.width = CLAMP(actual_extent.width,
+                                capabilities.minImageExtent.width,
+                                capabilities.maxImageExtent.width);
+    actual_extent.height = CLAMP(actual_extent.height,
+                                 capabilities.minImageExtent.height,
+                                 capabilities.maxImageExtent.height);
+
+    return actual_extent;
+}
+
+static u32 choose_image_count(VkSurfaceCapabilitiesKHR capabilities) {
+    u32 image_count =
+        CLAMP(2, capabilities.minImageCount, capabilities.maxImageCount);
+
+    return image_count;
 }

@@ -6,7 +6,6 @@
 
 #include "containers/darray.h"
 #include "core/defines.h"
-#include "core/logging.h"
 
 static void test_darray_push(void **state) {
     (void)state;
@@ -75,6 +74,27 @@ static void test_darray_remove_at_sorted(void **state) {
     darray_destroy(da);
 }
 
+static void test_darray_append(void **state) {
+    (void)state;
+
+    darray(u64) array_1 = darray_new(u64);
+    darray(u64) array_2 = darray_new(u64);
+    for (u64 i = 0; i < 10; i++) {
+        darray_push(array_1, i);
+    }
+    for (u64 i = 10; i < 20; i++) {
+        darray_push(array_2, i);
+    }
+    darray_append(array_1, array_2);
+
+    assert_int_equal(darray_length(array_1), 20);
+    for (u32 i = 0; i < 20; i++) {
+        assert_int_equal(array_1[i], i);
+    }
+    darray_destroy(array_1);
+    darray_destroy(array_2);
+}
+
 int main(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_darray_push),
@@ -82,6 +102,7 @@ int main(void) {
         cmocka_unit_test(test_darray_insert_at),
         cmocka_unit_test(test_darray_remove_at),
         cmocka_unit_test(test_darray_remove_at_sorted),
+        cmocka_unit_test(test_darray_append),
     };
 
     return cmocka_run_group_tests(tests, NULL, NULL);

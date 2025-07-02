@@ -1,132 +1,87 @@
 #include "buffer.h"
-#include "core/assert.h"
+#include "renderer/device_memory.h"
+#include "renderer/single_time_commands.h"
+#include "renderer/vulkan.h"
 #include "vulkan/vulkan_core.h"
 
-u32 find_memory_type(VkPhysicalDevice device,
-                     u32 type_filter,
-                     VkMemoryPropertyFlags properties);
+Buffer buffer_new(const Device *device, u64 size, VkBufferUsageFlags usage) {
+    Buffer self = {
+        .device = device,
+    };
 
-b8 render_buffer_create(const struct device *device,
-                        VkBufferUsageFlags usage,
-                        VkMemoryPropertyFlags properties,
-                        u64 size,
-                        struct renderbuffer *buffer) {
-    buffer->size = size;
-
-    VkBufferCreateInfo create_info = {
+    VkBufferCreateInfo buffer_info = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .size = size,
-        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
         .usage = usage,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
     };
 
-    if (vkCreateBuffer(device->handle, &create_info, NULL, &buffer->handle) !=
-        VK_SUCCESS) {
-        return false;
+    vulkan_check(
+        vkCreateBuffer(device->handle, &buffer_info, NULL, &self.handle),
+        "create buffer");
+
+    return self;
+}
+
+void buffer_destroy(Buffer *self) {
+    if (self->handle != NULL) {
+        vkDestroyBuffer(self->device->handle, self->handle, NULL);
+        self->handle = NULL;
     }
+}
 
-    VkMemoryRequirements memory_requirements;
-    vkGetBufferMemoryRequirements(device->handle,
-                                  buffer->handle,
-                                  &memory_requirements);
+DeviceMemory buffer_allocate_memory(const Buffer *self,
+                                    VkMemoryAllocateFlags allocate_flags,
+                                    VkMemoryPropertyFlags property_flags) {
+    VkMemoryRequirements requirements = buffer_get_memory_requirements(self);
+    DeviceMemory memory = device_memory_new(self->device,
+                                            requirements.size,
+                                            requirements.memoryTypeBits,
+                                            allocate_flags,
+                                            property_flags);
 
-    VkMemoryAllocateInfo allocate_info = {
-        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-        .allocationSize = memory_requirements.size,
-        .memoryTypeIndex = find_memory_type(device->physical_device,
-                                            memory_requirements.memoryTypeBits,
-                                            properties),
+    vulkan_check(vkBindBufferMemory(self->device->handle,
+                                    self->handle,
+                                    memory.handle,
+                                    0),
+                 "bind buffer memory");
+
+    return memory;
+}
+
+VkMemoryRequirements buffer_get_memory_requirements(const Buffer *self) {
+    VkMemoryRequirements requirements;
+    vkGetBufferMemoryRequirements(self->device->handle,
+                                  self->handle,
+                                  &requirements);
+    return requirements;
+}
+
+VkDeviceAddress buffer_get_device_address(const Buffer *self) {
+    VkBufferDeviceAddressInfo info = {
+        .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+        .pNext = NULL,
+        .buffer = self->handle,
     };
 
-    if (vkAllocateMemory(device->handle,
-                         &allocate_info,
-                         NULL,
-                         &buffer->memory) != VK_SUCCESS) {
-        return false;
+    return vkGetBufferDeviceAddress(self->device->handle, &info);
+}
+
+void buffer_copy_from(const Buffer *self,
+                      CommandPool *command_pool,
+                      const Buffer *src,
+                      VkDeviceSize size) {
+    single_time_commands_submit(command_pool) {
+        VkBufferCopy copy_region = {
+            .srcOffset = 0,
+            .dstOffset = 0,
+            .size = size,
+        };
+
+        vkCmdCopyBuffer(command_buffer,
+                        src->handle,
+                        self->handle,
+                        1,
+                        &copy_region);
     }
-
-    vkBindBufferMemory(device->handle, buffer->handle, buffer->memory, 0);
-
-    return true;
-}
-
-void render_buffer_destroy(const struct device *device,
-                           struct renderbuffer *buffer) {
-    vkDestroyBuffer(device->handle, buffer->handle, NULL);
-    vkFreeMemory(device->handle, buffer->memory, NULL);
-}
-
-void render_buffer_copy(const struct renderer *renderer,
-                        const struct renderbuffer *src_buffer,
-                        const struct renderbuffer *dst_buffer) {
-    VkCommandBufferAllocateInfo alloc_info = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandPool = renderer->commandpool.handle,
-        .commandBufferCount = 1,
-    };
-
-    VkCommandBuffer command_buffer;
-    vkAllocateCommandBuffers(renderer->device.handle,
-                             &alloc_info,
-                             &command_buffer);
-
-    VkCommandBufferBeginInfo begin_info = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-    };
-
-    vkBeginCommandBuffer(command_buffer, &begin_info);
-
-    VkBufferCopy copy_region = {
-        .size = src_buffer->size,
-    };
-
-    vkCmdCopyBuffer(command_buffer,
-                    src_buffer->handle,
-                    dst_buffer->handle,
-                    1,
-                    &copy_region);
-
-    vkEndCommandBuffer(command_buffer);
-
-    VkSubmitInfo submit_info = {
-        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .commandBufferCount = 1,
-        .pCommandBuffers = &command_buffer,
-    };
-
-    vkQueueSubmit(renderer->device.graphics_queue,
-                  1,
-                  &submit_info,
-                  VK_NULL_HANDLE);
-    vkQueueWaitIdle(renderer->device.graphics_queue);
-}
-
-void render_buffer_map_memory(const struct device *device,
-                              const struct renderbuffer *buffer,
-                              void **ptr) {
-    vkMapMemory(device->handle, buffer->memory, 0, buffer->size, 0, ptr);
-}
-
-void render_buffer_unmap_memory(const struct device *device,
-                                const struct renderbuffer *buffer) {
-    vkUnmapMemory(device->handle, buffer->memory);
-}
-
-u32 find_memory_type(VkPhysicalDevice device,
-                     u32 type_filter,
-                     VkMemoryPropertyFlags properties) {
-    VkPhysicalDeviceMemoryProperties memory_properties;
-    vkGetPhysicalDeviceMemoryProperties(device, &memory_properties);
-
-    for (u32 i = 0; i < memory_properties.memoryTypeCount; i++) {
-        if ((type_filter & (1 << i)) &&
-            (memory_properties.memoryTypes[i].propertyFlags & properties) ==
-                properties) {
-            return i;
-        }
-    }
-
-    ASSERT_UNREACHABLE();
 }

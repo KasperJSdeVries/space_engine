@@ -3,6 +3,7 @@
 #include "core/assert.h"
 #include "ecs/component_store.h"
 #include "ecs/entity.h"
+#include "ecs/system.h"
 
 #include <string.h>
 
@@ -10,6 +11,7 @@ World world_new(void) {
     return (World){
         .component_stores = darray_new(ComponentStore),
         .free_ids = darray_new(entity_id),
+        .systems = darray_new(SystemInfo),
         .next_id = 0,
     };
 }
@@ -128,3 +130,9 @@ void *_world_get_component(const World *world,
 
     return component_store_find(store, entity);
 }
+
+void world_add_system(World *world, SystemInfo system) {
+    darray_push(world->systems, system);
+}
+
+void world_run(World *world) { (void)world; }

@@ -2,6 +2,8 @@
 #define SYSTEM_H
 
 #include "core/defines.h"
+#include "ecs/entity.h"
+#include "ecs/query.h"
 
 #define MAX_REQUIRED_COMPONENTS 8
 
@@ -10,13 +12,19 @@ typedef enum {
     SYSTEM_FLAG_NETWORKED = 1 << 0,
 } SystemFlag;
 
-typedef void (*system_run)(void **components, float dt);
+typedef enum {
+    SYSTEM_SCHEDULE_STARTUP,
+    SYSTEM_SCHEDULE_UPDATE,
+} SystemSchedule;
+
+typedef void (*system_run)(void **components);
 
 typedef struct {
     const char *name;
-    u32 required_components[MAX_REQUIRED_COMPONENTS];
-    u64 required_count;
+    Query query;
+    system_run fn;
+    SystemSchedule schedule;
     SystemFlag flags;
-} System;
+} SystemInfo;
 
 #endif // SYSTEM_H

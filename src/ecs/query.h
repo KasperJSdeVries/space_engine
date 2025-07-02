@@ -15,12 +15,6 @@ Query _query_new(const char *first, ...);
 #define STRINGIFY(x) (#x), (u64)(sizeof(x))
 #define EXPAND_AND_STRINGIFY(x) STRINGIFY(x)
 
-#define QUERY_STRUCT_FIELD(type) type *type;
-#define QUERY_STRUCT(...)                                                      \
-    struct {                                                                   \
-        MAP(QUERY_STRUCT_FIELD, __VA_ARGS__)                                   \
-    }
-
 // Apply a macro to each argument
 #define MAP_1(m, x) m(x)
 #define MAP_2(m, x, ...) m(x), MAP_1(m, __VA_ARGS__)

@@ -1,47 +1,21 @@
-#ifndef RENDER_SWAPCHAIN_H
-#define RENDER_SWAPCHAIN_H
+#ifndef SWAPCHAIN_H
+#define SWAPCHAIN_H
 
-#include "types.h"
+#include "device.h"
+#include "image_view.h"
 
-struct swapchain_support_details {
-    VkSurfaceCapabilitiesKHR capabilities;
-    VkSurfaceFormatKHR *formats;
-    VkPresentModeKHR *present_modes;
-    u32 format_count;
-    u32 present_mode_count;
-};
+typedef struct {
+    VkSwapchainKHR handle;
+    const Device *device;
+    darray(VkImage) images;
+    darray(ImageView) image_views;
+    VkExtent2D extent;
+    u32 min_image_count;
+    VkPresentModeKHR present_mode;
+    VkFormat format;
+} Swapchain;
 
-struct swapchain_support_details query_swapchain_support(
-    VkPhysicalDevice device,
-    VkSurfaceKHR surface);
-void swapchain_support_details_destroy(
-    struct swapchain_support_details *details);
+Swapchain swapchain_new(const Device *device, VkPresentModeKHR present_mode);
+void swapchain_destroy(Swapchain *swapchain);
 
-VkSurfaceFormatKHR choose_swap_surface_format(
-    u32 available_format_count,
-    const VkSurfaceFormatKHR *available_formats);
-VkPresentModeKHR choose_swap_present_mode(
-    u32 available_present_mode_count,
-    const VkPresentModeKHR *available_present_modes);
-VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR *capabilities,
-                              const struct window *window);
-
-b8 swapchain_create(const struct device *device,
-                    const struct surface *surface,
-                    const struct window *window,
-                    struct swapchain *swapchain);
-void swapchain_destroy(const struct device *device,
-                       struct swapchain *swapchain);
-b8 swapchain_recreate(const struct device *device,
-                      const struct surface *surface,
-                      const struct window *window,
-                      const struct renderpass *renderpass,
-                      struct swapchain *swapchain);
-
-b8 swapchain_framebuffers_create(const struct device *device,
-                                 const struct renderpass *renderpass,
-                                 struct swapchain *swapchain);
-void swapchain_framebuffers_destroy(const struct device *device,
-                                    struct swapchain *swapchain);
-
-#endif // RENDER_SWAPCHAIN_H
+#endif // SWAPCHAIN_H
