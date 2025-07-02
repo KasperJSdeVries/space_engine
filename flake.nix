@@ -24,7 +24,7 @@
       buildInputs = with pkgs; [
         cglm
         cmocka
-        shaderc
+        glslang
         vulkan-extension-layer
         vulkan-headers
         vulkan-loader

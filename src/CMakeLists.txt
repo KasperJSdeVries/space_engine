@@ -7,6 +7,6 @@ add_library(engine STATIC ${ENGINE_SOURCES})
 target_link_libraries(engine PRIVATE ${Vulkan_LIBRARIES} glfw cglm m)
 target_include_directories(engine PUBLIC .)
 target_include_directories(engine PRIVATE ../extern/)
-add_dependencies(engine Shaders)
+add_dependencies(engine Assets)
 
 install(TARGETS engine)
