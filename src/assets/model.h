@@ -13,10 +13,10 @@ typedef struct {
 
 Model model_load(const char *filename);
 Model create_cornell_box(const f32 scale);
-Model create_box(vec3s p0, vec3s p1, const Material *material);
-Model create_sphere(vec3s center, f32 radius, const Material *material);
+Model create_box(vec3s p0, vec3s p1, Material material);
+Model create_sphere(vec3s center, f32 radius, Material material);
 
-void model_set_material(Model *self, const Material *material);
+void model_set_material(Model *self, Material material);
 void model_transform(Model *self, mat4s transform);
 
 #endif // MODEL_H

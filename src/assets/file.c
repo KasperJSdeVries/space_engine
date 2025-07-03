@@ -10,7 +10,7 @@ u8 *file_read(const char *filename, u64 *out_file_size) {
 
     if (fp == NULL) {
         LOG_ERROR("failed to open file '%s'", filename);
-        return NULL;
+        exit(EXIT_FAILURE);
     }
 
     fseek(fp, 0, SEEK_END);
@@ -24,7 +24,7 @@ u8 *file_read(const char *filename, u64 *out_file_size) {
 
     if (fread(buffer, file_size, 1, fp) != 1) {
         LOG_ERROR("failed to read file '%s'", filename);
-        return NULL;
+        exit(EXIT_FAILURE);
     }
 
     *out_file_size = file_size;

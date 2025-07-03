@@ -68,7 +68,7 @@
           neocmakelsp
           nodejs
           kdePackages.kcachegrind
-          renderdoc
+          cudaPackages.nsight_systems
           vulkan-tools
           vscode-langservers-extracted
           yaml-language-server

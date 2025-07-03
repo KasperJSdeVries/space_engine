@@ -24,8 +24,10 @@ typedef struct {
     darray(VkSampler) texture_samplers;
 } Scene;
 
-Scene scene_new(CommandPool *command_pool,
-                darray(Model) models,
-                darray(Texture) textures);
+Scene scene_new(darray(Model) models, darray(Texture) textures);
+void scene_destroy(Scene *self);
+
+void scene_generate_buffers(Scene *self, CommandPool *command_pool);
+void scene_destroy_buffers(Scene *self);
 
 #endif // SCENE_H

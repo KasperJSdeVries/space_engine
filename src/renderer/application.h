@@ -18,17 +18,17 @@
 
 typedef struct {
     Window *window;
-    Instance *instance;
+    Instance instance;
     DebugUtilsMessenger *debug_utils_messenger;
-    Surface *surface;
+    Surface surface;
     Device *device;
-    Swapchain *swapchain;
+    Swapchain swapchain;
     darray(UniformBuffer) uniform_buffers;
-    DepthBuffer *depth_buffer;
+    DepthBuffer depth_buffer;
     GraphicsPipeline *graphics_pipeline;
     darray(Framebuffer) framebuffers;
-    CommandPool *command_pool;
-    CommandBuffers *command_buffers;
+    CommandPool command_pool;
+    CommandBuffers command_buffers;
     darray(Semaphore) image_available_semaphores;
     darray(Semaphore) render_finished_semaphores;
     darray(Fence) in_flight_fences;
@@ -38,14 +38,10 @@ typedef struct {
 } Application;
 
 Application application_new(WindowConfig window_config,
+                            Scene *scene,
                             VkPresentModeKHR present_mode,
                             b8 enable_validation_layers);
-
 void application_destroy(Application *application);
-
-darray(VkPhysicalDevice) application_physical_devices(Application *application);
-void application_set_physical_device(Application *application,
-                                     VkPhysicalDevice physical_device);
 
 void application_run(Application *application);
 

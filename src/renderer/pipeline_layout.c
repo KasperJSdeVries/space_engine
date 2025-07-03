@@ -4,13 +4,13 @@
 
 PipelineLayout pipeline_layout_new(
     const Device *device,
-    const DescriptorSetLayout *descriptor_set_layout) {
+    VkDescriptorSetLayout descriptor_set_layout) {
     PipelineLayout self = {
         .device = device,
     };
 
     VkDescriptorSetLayout descriptor_set_layouts[] = {
-        descriptor_set_layout->handle,
+        descriptor_set_layout,
     };
 
     VkPipelineLayoutCreateInfo pipeline_layout_info = {

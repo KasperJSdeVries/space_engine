@@ -1,13 +1,8 @@
+#include "assets/material.h"
 #include "core/defines.h"
-#include "core/logging.h"
 #include "renderer/application.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-
-static void set_vulkan_device(Application *application);
+static f32 randf(void) { return (f32)random() / (f32)UINT32_MAX; }
 
 int main(void) {
     WindowConfig window_config = {
@@ -19,89 +14,78 @@ int main(void) {
         .resizable = true,
     };
 
-    Application application =
-        application_new(window_config, VK_PRESENT_MODE_IMMEDIATE_KHR, true);
+    darray(Model) models = darray_new(Model);
+    darray(Texture) textures = darray_new(Texture);
 
-    set_vulkan_device(&application);
+    darray_push(
+        models,
+        create_sphere((vec3s){{0, -1000, 0}},
+                      1000,
+                      material_lambertian((vec3s){{0.5f, 0.5f, 0.5f}})));
+
+    for (i32 i = -11; i < 11; i++) {
+        for (i32 j = -11; j < 11; j++) {
+            f32 mat = randf();
+            f32 center_y = (f32)j + 0.9f * randf();
+            f32 center_x = (f32)i + 0.9f * randf();
+            vec3s center = {{center_x, 0.2f, center_y}};
+
+            if (vec3_distance(center, (vec3s){{4, 0.2f, 0}}) > 0.9f) {
+                if (mat < 0.8f) {
+                    f32 r = randf() * randf();
+                    f32 g = randf() * randf();
+                    f32 b = randf() * randf();
+
+                    darray_push(
+                        models,
+                        create_sphere(center,
+                                      0.2f,
+                                      material_lambertian((vec3s){{r, g, b}})));
+                } else if (mat < 0.95) {
+                    f32 fuzziness = 0.5f * randf();
+                    f32 r = 0.5f * (1 + randf());
+                    f32 g = 0.5f * (1 + randf());
+                    f32 b = 0.5f * (1 + randf());
+
+                    darray_push(
+                        models,
+                        create_sphere(
+                            center,
+                            0.2f,
+                            material_metallic((vec3s){{r, g, b}}, fuzziness)));
+                } else {
+                    darray_push(
+                        models,
+                        create_sphere(center, 0.2f, material_dielectric(1.5f)));
+                }
+            }
+        }
+    }
+
+    darray_push(
+        models,
+        create_sphere((vec3s){{0, 1, 0}}, 1.0f, material_dielectric(1.5f)));
+    darray_push(
+        models,
+        create_sphere((vec3s){{-4, 1, 0}},
+                      1.0f,
+                      material_lambertian((vec3s){{0.4f, 0.2f, 0.1f}})));
+    darray_push(
+        models,
+        create_sphere((vec3s){{4, 1, 0}},
+                      1.0f,
+                      material_metallic((vec3s){{0.7f, 0.6f, 0.5f}}, 0.0f)));
+
+    darray_push(textures, texture_new("assets/textures/white.png"));
+
+    Scene scene = scene_new(models, textures);
+
+    Application application = application_new(window_config,
+                                              &scene,
+                                              VK_PRESENT_MODE_IMMEDIATE_KHR,
+                                              false);
 
     application_run(&application);
 
     application_destroy(&application);
-}
-
-static void set_vulkan_device(Application *application) {
-    darray(VkPhysicalDevice) physical_devices =
-        application_physical_devices(application);
-
-    VkPhysicalDevice found_device = VK_NULL_HANDLE;
-    for (u32 i = 0; i < darray_length(physical_devices); i++) {
-        VkPhysicalDevice device = physical_devices[i];
-
-        VkPhysicalDeviceProperties2 props = {
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
-        };
-
-        vkGetPhysicalDeviceProperties2(device, &props);
-
-        VkPhysicalDeviceFeatures device_features;
-        vkGetPhysicalDeviceFeatures(device, &device_features);
-
-        if (!device_features.geometryShader) {
-            continue;
-        }
-
-        u32 extension_count;
-        vkEnumerateDeviceExtensionProperties(device,
-                                             NULL,
-                                             &extension_count,
-                                             NULL);
-        VkExtensionProperties extensions[extension_count];
-        vkEnumerateDeviceExtensionProperties(device,
-                                             NULL,
-                                             &extension_count,
-                                             extensions);
-
-        b8 has_ray_tracing = false;
-        for (u32 j = 0; j < extension_count; j++) {
-            if (strcmp(extensions[j].extensionName,
-                       VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME) == 0) {
-                has_ray_tracing = true;
-                break;
-            }
-        }
-        if (!has_ray_tracing) {
-            continue;
-        }
-
-        u32 queue_family_count;
-        vkGetPhysicalDeviceQueueFamilyProperties(device,
-                                                 &queue_family_count,
-                                                 NULL);
-        VkQueueFamilyProperties queue_families[queue_family_count];
-        vkGetPhysicalDeviceQueueFamilyProperties(device,
-                                                 &queue_family_count,
-                                                 queue_families);
-
-        b8 has_graphics_queue = false;
-        for (u32 j = 0; j < queue_family_count; j++) {
-            if (queue_families[j].queueCount > 0 &&
-                queue_families[j].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-                has_graphics_queue = true;
-                break;
-            }
-        }
-        if (!has_graphics_queue) {
-            continue;
-        }
-
-        found_device = device;
-        break;
-    }
-
-    if (found_device == VK_NULL_HANDLE) {
-        LOG_FATAL("cannot find a suitable device");
-        exit(EXIT_FAILURE);
-    }
-
-    application_set_physical_device(application, found_device);
 }

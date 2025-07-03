@@ -13,8 +13,6 @@ file(GLOB_RECURSE shader_extra_files CONFIGURE_DEPENDS "shaders/*.glsl")
 file(GLOB_RECURSE texture_files CONFIGURE_DEPENDS "textures/*.jpg"
      "textures/*.png" "textures/*.txt")
 
-find_package(Vulkan REQUIRED COMPONENTS glslangValidator)
-
 foreach(shader ${shader_files})
   get_filename_component(file_name ${shader} NAME)
   get_filename_component(full_path ${shader} ABSOLUTE)

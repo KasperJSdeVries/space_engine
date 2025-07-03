@@ -89,19 +89,15 @@ Window *window_new(WindowConfig config) {
         exit(EXIT_FAILURE);
     }
 
-    if (config.cursor_disabled) {
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    }
-
     Window *this = malloc(sizeof(*this));
     this->config = config;
     this->window = window;
 
     glfwSetWindowUserPointer(window, this);
-    glfwSetKeyCallback(window, glfw_key_callback);
-    glfwSetCursorPosCallback(window, glfw_cursor_position_callback);
-    glfwSetMouseButtonCallback(window, glfw_mouse_button_callback);
-    glfwSetScrollCallback(window, glfw_scroll_callback);
+
+    if (config.cursor_disabled) {
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    }
 
     return this;
 }
@@ -196,6 +192,7 @@ void window_set_on_key(Window *window,
                                       i32 action,
                                       i32 mods)) {
     window->on_key = on_key;
+    glfwSetKeyCallback(window->window, glfw_key_callback);
 }
 
 void window_set_on_cursor_position(Window *window,
@@ -203,12 +200,14 @@ void window_set_on_cursor_position(Window *window,
                                                               f64 x_pos,
                                                               f64 y_pos)) {
     window->on_cursor_position = on_cursor_position;
+    glfwSetCursorPosCallback(window->window, glfw_cursor_position_callback);
 }
 
 void window_set_on_mouse_button(
     Window *window,
     void (*on_mouse_button)(void *ctx, i32 button, i32 action, i32 mods)) {
     window->on_mouse_button = on_mouse_button;
+    glfwSetMouseButtonCallback(window->window, glfw_mouse_button_callback);
 }
 
 void window_set_on_scroll(Window *window,
@@ -216,6 +215,7 @@ void window_set_on_scroll(Window *window,
                                             f64 x_offset,
                                             f64 y_offset)) {
     window->on_scroll = on_scroll;
+    glfwSetScrollCallback(window->window, glfw_scroll_callback);
 }
 
 // se_result window_surface_create(const struct window *window,

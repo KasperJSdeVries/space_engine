@@ -10,7 +10,7 @@
 typedef struct {
     VkPipeline handle;
     const Swapchain *swapchain;
-    PipelineLayout *pipeline_layout;
+    PipelineLayout pipeline_layout;
     RenderPass *render_pass;
     VkDescriptorPool descriptor_pool;
     VkDescriptorSetLayout descriptor_layout;

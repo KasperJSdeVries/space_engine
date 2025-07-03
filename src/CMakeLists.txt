@@ -1,5 +1,4 @@
 find_package(glfw3 3.4 REQUIRED)
-find_package(Vulkan REQUIRED)
 find_package(cglm REQUIRED)
 
 file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS "*.c")

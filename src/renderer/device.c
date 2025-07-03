@@ -9,7 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-static u32 find_queue(darray(VkQueueFamilyProperties) queue_families,
+static u32 find_queue(VkQueueFamilyProperties *queue_families,
+                      u32 queue_family_count,
                       const char *name,
                       VkQueueFlags required_bits,
                       VkQueueFlags excluded_bits);
@@ -27,41 +28,45 @@ Device device_new(VkPhysicalDevice physical_device,
     vkGetPhysicalDeviceQueueFamilyProperties(physical_device,
                                              &queue_family_count,
                                              NULL);
-    VkQueueFamilyProperties queue_family_properties[queue_family_count];
+    VkQueueFamilyProperties queue_families[queue_family_count];
     vkGetPhysicalDeviceQueueFamilyProperties(physical_device,
                                              &queue_family_count,
-                                             queue_family_properties);
-    darray(VkQueueFamilyProperties) queue_families =
-        darray_new(VkQueueFamilyProperties);
-    for (u32 i = 0; i < queue_family_count; i++) {
-        darray_push(queue_families, queue_family_properties[i]);
-    }
-
-    u32 graphics_family =
-        find_queue(queue_families, "graphics", VK_QUEUE_GRAPHICS_BIT, 0);
+                                             queue_families);
+    u32 graphics_family = find_queue(queue_families,
+                                     queue_family_count,
+                                     "graphics",
+                                     VK_QUEUE_GRAPHICS_BIT,
+                                     0);
     u32 compute_family = find_queue(queue_families,
+                                    queue_family_count,
                                     "compute",
                                     VK_QUEUE_COMPUTE_BIT,
                                     VK_QUEUE_GRAPHICS_BIT);
     u32 transfer_family =
         find_queue(queue_families,
+                   queue_family_count,
                    "transfer",
                    VK_QUEUE_TRANSFER_BIT,
                    VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
+
     b8 present_family_found = false;
     u32 present_family = 0;
-    for (u32 i = 0; i < darray_length(queue_families); i++) {
+    for (u32 i = 0; i < queue_family_count; i++) {
         VkBool32 present_support = VK_FALSE;
-        vkGetPhysicalDeviceSurfaceSupportKHR(physical_device,
-                                             i,
-                                             surface->handle,
-                                             &present_support);
+        vulkan_check(vkGetPhysicalDeviceSurfaceSupportKHR(physical_device,
+                                                          i,
+                                                          surface->handle,
+                                                          &present_support),
+                     "get physical device surface support khr");
+        LOG_DEBUG("present_support[%d]: %s",
+                  i,
+                  present_support ? "true" : "false");
         if (present_support && queue_families[i].queueCount > 0) {
             present_family_found = true;
             present_family = i;
+            break;
         }
     }
-
     if (!present_family_found) {
         LOG_FATAL("found no presentation queue");
         exit(EXIT_FAILURE);
@@ -182,11 +187,12 @@ static void check_required_extensions(VkPhysicalDevice device,
     }
 }
 
-static u32 find_queue(darray(VkQueueFamilyProperties) queue_families,
+static u32 find_queue(VkQueueFamilyProperties *queue_families,
+                      u32 queue_family_count,
                       const char *name,
                       VkQueueFlags required_bits,
                       VkQueueFlags excluded_bits) {
-    for (u32 i = 0; i < darray_length(queue_families); i++) {
+    for (u32 i = 0; i < queue_family_count; i++) {
         VkQueueFamilyProperties queue_family = queue_families[i];
         if (queue_family.queueCount > 0 &&
             queue_family.queueFlags & required_bits &&

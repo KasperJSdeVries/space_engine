@@ -6,6 +6,7 @@
 #include "core/logging.h"
 #include "renderer/pipeline_layout.h"
 #include "renderer/render_pass.h"
+#include "renderer/shader_module.h"
 #include "renderer/vulkan.h"
 #include "vulkan/vulkan_core.h"
 
@@ -248,20 +249,29 @@ GraphicsPipeline graphics_pipeline_new(const Swapchain *swapchain,
                                NULL);
     }
 
-    self.pipeline_layout = malloc(sizeof(PipelineLayout));
-    *self.pipeline_layout = pipeline_layout_new(device, NULL /* TODO */);
+    self.pipeline_layout = pipeline_layout_new(device, self.descriptor_layout);
     self.render_pass = malloc(sizeof(RenderPass));
     *self.render_pass = render_pass_new(swapchain,
                                         depth_buffer,
                                         VK_ATTACHMENT_LOAD_OP_CLEAR,
                                         VK_ATTACHMENT_LOAD_OP_CLEAR);
 
-    // TODO: load shaders
+    ShaderModule vert_shader =
+        shader_module_new(device, "assets/shaders/Graphics.vert.spv");
+    ShaderModule frag_shader =
+        shader_module_new(device, "assets/shaders/Graphics.frag.spv");
+
+    VkPipelineShaderStageCreateInfo shader_stages[] = {
+        shader_module_create_shader_stage(&vert_shader,
+                                          VK_SHADER_STAGE_VERTEX_BIT),
+        shader_module_create_shader_stage(&frag_shader,
+                                          VK_SHADER_STAGE_FRAGMENT_BIT),
+    };
 
     VkGraphicsPipelineCreateInfo pipeline_info = {
         .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
         .stageCount = 2,
-        .pStages = NULL, // TODO
+        .pStages = shader_stages,
         .pVertexInputState = &vertex_input_info,
         .pInputAssemblyState = &input_assembly,
         .pViewportState = &viewport_state,
@@ -269,7 +279,7 @@ GraphicsPipeline graphics_pipeline_new(const Swapchain *swapchain,
         .pMultisampleState = &multisampling,
         .pDepthStencilState = &depth_stencil,
         .pColorBlendState = &color_blending,
-        .layout = self.pipeline_layout->handle,
+        .layout = self.pipeline_layout.handle,
         .renderPass = self.render_pass->handle,
         .subpass = 0,
     };
@@ -293,8 +303,7 @@ void graphics_pipeline_destroy(GraphicsPipeline *self) {
 
     render_pass_destroy(self->render_pass);
     free(self->render_pass);
-    pipeline_layout_destroy(self->pipeline_layout);
-    free(self->pipeline_layout);
+    pipeline_layout_destroy(&self->pipeline_layout);
 }
 
 VkDescriptorSet graphics_pipeline_descriptor_set(const GraphicsPipeline *self,
