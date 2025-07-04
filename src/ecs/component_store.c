@@ -358,9 +358,9 @@ void component_store_insert(ComponentStore *store,
     } else {
         if (store->component_count >= store->component_capacity) {
             store->component_capacity *= COMPONENT_ARRAY_GROWTH_FACTOR;
-            store->component_array = reallocarray(store->component_array,
-                                                  store->component_capacity,
-                                                  store->component_size);
+            store->component_array =
+                realloc(store->component_array,
+                        store->component_capacity * store->component_size);
         }
         component_index = store->component_count;
         store->component_count++;
@@ -549,17 +549,6 @@ void component_store_remove(ComponentStore *store, entity_id key) {
     u64 slot = ((u64)found_component - (u64)store->component_array) /
                store->component_size;
     darray_push(store->free_slots, slot);
-}
-
-void component_store_print(const ComponentStore *store) {
-    node *n = find_leaf(store, 0);
-    while (n != NULL) {
-        for (u32 i = 0; i < darray_length(n->keys); i++) {
-            printf("%d ", n->keys[i]);
-        }
-        printf("\n");
-        n = n->next;
-    }
 }
 
 void *component_store_find(const ComponentStore *store, entity_id key) {

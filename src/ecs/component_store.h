@@ -38,8 +38,6 @@ void component_store_insert(ComponentStore *store,
 
 void component_store_remove(ComponentStore *store, entity_id key);
 
-void component_store_print(const ComponentStore *store);
-
 void *component_store_find(const ComponentStore *store, entity_id key);
 
 #endif // COMPONENT_STORE_H

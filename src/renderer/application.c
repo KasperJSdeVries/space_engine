@@ -41,6 +41,8 @@ Application application_new(WindowConfig window_config,
     Application self = {
         .present_mode = present_mode,
         .scene = scene,
+        .number_of_samples = 8,
+        .total_number_of_samples = 0,
     };
 
     darray(const char *) validation_layers = darray_new(const char *);
@@ -322,6 +324,10 @@ static void draw_frame(void *ctx) {
     Application *self = ctx;
     u64 no_timeout = UINT64_MAX;
 
+    self->number_of_samples =
+        CLAMP((i64)(64 * 1024 - self->total_number_of_samples), 0, 8);
+    self->total_number_of_samples += self->number_of_samples;
+
     Fence *in_flight_fence = &self->in_flight_fences[self->current_frame];
     VkSemaphore image_available_semaphore =
         self->image_available_semaphores[self->current_frame].handle;
@@ -533,23 +539,9 @@ static void draw_frame(void *ctx) {
 
     command_buffer_end(&self->command_buffers, self->current_frame);
 
-    mat4s model = mat4_mul(glms_rotate(mat4_identity(),
-                                       0 * glm_rad(90.0f),
-                                       (vec3s){{0.0, 1.0, 0.0}}),
-                           glms_rotate(mat4_identity(),
-                                       0 * glm_rad(90.0f),
-                                       (vec3s){{1.0, 0.0, 0.0}}));
-
-    mat4s lookat = glms_lookat((vec3s){{13, 2, 3}},
-                               (vec3s){{0, 0, 0}},
-                               (vec3s){{0, 1, 0}});
-    vec4s position = mat4_mulv(mat4_inv(lookat), (vec4s){{0, 0, 0, 1}});
-    mat4s orientation = mat4_ins3(mat4_pick3(lookat), mat4_zero());
-
-    mat4s view = mat4_mul(
-        orientation,
-        glms_translate(mat4_identity(), vec3_negate(vec4_copy3(position))));
-    mat4s model_view = mat4_mul(view, model);
+    mat4s model_view = glms_lookat((vec3s){{13, 2, 3}},
+                                   (vec3s){{0, 0, 0}},
+                                   (vec3s){{0, 1, 0}});
     mat4s projection = glms_perspective(glm_rad(20.0),
                                         (f32)self->swapchain.extent.width /
                                             (f32)self->swapchain.extent.height,
@@ -565,6 +557,11 @@ static void draw_frame(void *ctx) {
         .aperture = 0.1f,
         .focus_distance = 10.0f,
         .random_seed = 1,
+        .total_number_of_samples = self->total_number_of_samples,
+        .number_of_samples = self->number_of_samples,
+        .number_of_bounces = 16,
+        .show_heat_map = false,
+        .heatmap_scale = 1.0,
         .has_sky = true,
     };
 

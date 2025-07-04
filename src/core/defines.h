@@ -1,6 +1,9 @@
 #ifndef SE_DEFINES_H
 #define SE_DEFINES_H
 
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE // Vulkan [0, 1] depth range, instead of OpenGL [-1, +1]
+#define GLM_FORCE_RIGHT_HANDED // Vulkan has a left handed coordinate system (same as DirectX), OpenGL is right handed
+#define GLM_FORCE_RADIANS
 #define CGLM_OMIT_NS_FROM_STRUCT_API
 #include <cglm/struct.h>
 
@@ -44,7 +47,7 @@
 typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
-typedef unsigned long u64;
+typedef unsigned long long u64;
 
 STATIC_ASSERT(sizeof(u8) == 1, "Expected u8 to be 1 byte.");
 STATIC_ASSERT(sizeof(u16) == 2, "Expected u16 to be 2 byte.");
@@ -54,7 +57,7 @@ STATIC_ASSERT(sizeof(u64) == 8, "Expected u64 to be 8 byte.");
 typedef signed char i8;
 typedef signed short i16;
 typedef signed int i32;
-typedef signed long i64;
+typedef signed long long i64;
 
 STATIC_ASSERT(sizeof(i8) == 1, "Expected i8 to be 1 byte.");
 STATIC_ASSERT(sizeof(i16) == 2, "Expected i16 to be 2 byte.");

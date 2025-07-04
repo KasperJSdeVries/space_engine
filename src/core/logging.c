@@ -3,6 +3,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 void _log_output(LogLevel level, char *message, ...) {
     const char *level_strings[] =
@@ -13,8 +14,9 @@ void _log_output(LogLevel level, char *message, ...) {
     va_list ap;
     va_start(ap, message);
 
-    char *out_message;
-    if (vasprintf(&out_message, message, ap) == -1) {
+    u64 out_message_size = vsnprintf(NULL, 0, message, ap);
+    char *out_message = malloc(out_message_size + 1);
+    if (vsnprintf(out_message, out_message_size + 1, message, ap) == -1) {
         fprintf(stderr,
                 "\033[0;41m[FATAL] failed to format _log_output\033[0m\n");
         return;

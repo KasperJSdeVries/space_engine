@@ -55,6 +55,8 @@ typedef struct {
     Scene *scene;
     u64 current_frame;
     VkPresentModeKHR present_mode;
+    u32 total_number_of_samples;
+    u32 number_of_samples;
 } Application;
 
 Application application_new(WindowConfig window_config,

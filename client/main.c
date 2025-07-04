@@ -2,7 +2,10 @@
 #include "core/defines.h"
 #include "renderer/application.h"
 
-static f32 randf(void) { return (f32)random() / (f32)UINT32_MAX; }
+#include <stdint.h>
+#include <stdlib.h>
+
+static f32 randf(void) { return (f32)rand() / (f32)RAND_MAX; }
 
 int main(void) {
     WindowConfig window_config = {
