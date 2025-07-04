@@ -14,6 +14,14 @@ void _log_output(LogLevel level, char *message, ...) {
     va_list ap;
     va_start(ap, message);
 
+#if defined(SE_LINUX)
+    char *out_message;
+    if (vasprintf(&out_message, message, ap) == -1) {
+        fprintf(stderr,
+                "\033[0;41m[FATAL] failed to format _log_output\033[0m\n");
+        return;
+    };
+#else
     u64 out_message_size = vsnprintf(NULL, 0, message, ap);
     char *out_message = malloc(out_message_size + 1);
     if (vsnprintf(out_message, out_message_size + 1, message, ap) == -1) {
@@ -21,6 +29,7 @@ void _log_output(LogLevel level, char *message, ...) {
                 "\033[0;41m[FATAL] failed to format _log_output\033[0m\n");
         return;
     };
+#endif
 
     b8 is_error = (level == LOG_LEVEL_ERROR || level == LOG_LEVEL_FATAL);
     FILE *console_handle = is_error ? stderr : stdout;
