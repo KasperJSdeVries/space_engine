@@ -358,71 +358,9 @@ static void draw_frame(void *ctx) {
     VkCommandBuffer command_buffer =
         command_buffer_begin(&self->command_buffers, self->current_frame);
 
-    // VkClearValue clear_values[] = {
-    //     (VkClearValue){.color = {{0.0f, 0.0f, 0.0f, 1.0f}}},
-    //     (VkClearValue){.depthStencil = {1.0f, 0}},
-    // };
-    //
-    // VkRenderPassBeginInfo render_pass_info = {
-    //     .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-    //     .renderPass = self->graphics_pipeline->render_pass->handle,
-    //     .framebuffer = self->framebuffers[image_index].handle,
-    //     .renderArea =
-    //         {
-    //             .offset = {0, 0},
-    //             .extent = self->swapchain.extent,
-    //         },
-    //     .clearValueCount = ARRAY_SIZE(clear_values),
-    //     .pClearValues = clear_values,
-    // };
-    //
-    // vkCmdBeginRenderPass(command_buffer,
-    //                      &render_pass_info,
-    //                      VK_SUBPASS_CONTENTS_INLINE);
-    // {
-    //     VkDescriptorSet descriptor_sets[] = {
-    //         self->graphics_pipeline->descriptor_sets[self->current_frame]};
-    //     VkBuffer vertex_buffers[] = {self->scene->vertex_buffer.handle};
-    //     const VkBuffer index_buffer = self->scene->index_buffer.handle;
-    //     VkDeviceSize offsets[] = {0};
-    //
-    //     vkCmdBindPipeline(command_buffer,
-    //                       VK_PIPELINE_BIND_POINT_GRAPHICS,
-    //                       self->graphics_pipeline->handle);
-    //     vkCmdBindDescriptorSets(command_buffer,
-    //                             VK_PIPELINE_BIND_POINT_GRAPHICS,
-    //                             self->graphics_pipeline->pipeline_layout.handle,
-    //                             0,
-    //                             1,
-    //                             descriptor_sets,
-    //                             0,
-    //                             NULL);
-    //     vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers,
-    //     offsets); vkCmdBindIndexBuffer(command_buffer,
-    //                          index_buffer,
-    //                          0,
-    //                          VK_INDEX_TYPE_UINT32);
-    //
-    //     u32 vertex_offset = 0;
-    //     u32 index_offset = 0;
-    //
-    //     for (u32 i = 0; i < darray_length(self->scene->models); i++) {
-    //         Model *model = &self->scene->models[i];
-    //         u32 vertex_count = darray_length(model->vertices);
-    //         u32 index_count = darray_length(model->indices);
-    //
-    //         vkCmdDrawIndexed(command_buffer,
-    //                          index_count,
-    //                          1,
-    //                          index_offset,
-    //                          vertex_offset,
-    //                          0);
-    //
-    //         vertex_offset += vertex_count;
-    //         index_offset += index_count;
-    //     }
-    // }
-    // vkCmdEndRenderPass(command_buffer);
+#define RAY_TRACING 1
+
+#if RAY_TRACING
     {
         VkExtent2D extent = self->swapchain.extent;
 
@@ -536,6 +474,74 @@ static void draw_frame(void *ctx) {
                                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                     VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
     }
+#else
+    VkClearValue clear_values[] = {
+        (VkClearValue){.color = {{0.0f, 0.0f, 0.0f, 1.0f}}},
+        (VkClearValue){.depthStencil = {1.0f, 0}},
+    };
+
+    VkRenderPassBeginInfo render_pass_info = {
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+        .renderPass = self->graphics_pipeline->render_pass->handle,
+        .framebuffer = self->framebuffers[image_index].handle,
+        .renderArea =
+            {
+                .offset = {0, 0},
+                .extent = self->swapchain.extent,
+            },
+        .clearValueCount = ARRAY_SIZE(clear_values),
+        .pClearValues = clear_values,
+    };
+
+    vkCmdBeginRenderPass(command_buffer,
+                         &render_pass_info,
+                         VK_SUBPASS_CONTENTS_INLINE);
+    {
+        VkDescriptorSet descriptor_sets[] = {
+            self->graphics_pipeline->descriptor_sets[self->current_frame]};
+        VkBuffer vertex_buffers[] = {self->scene->vertex_buffer.handle};
+        const VkBuffer index_buffer = self->scene->index_buffer.handle;
+        VkDeviceSize offsets[] = {0};
+
+        vkCmdBindPipeline(command_buffer,
+                          VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          self->graphics_pipeline->handle);
+        vkCmdBindDescriptorSets(command_buffer,
+                                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                self->graphics_pipeline->pipeline_layout.handle,
+                                0,
+                                1,
+                                descriptor_sets,
+                                0,
+                                NULL);
+        vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers, offsets);
+        vkCmdBindIndexBuffer(command_buffer,
+                             index_buffer,
+                             0,
+                             VK_INDEX_TYPE_UINT32);
+
+        u32 vertex_offset = 0;
+        u32 index_offset = 0;
+
+        for (u32 i = 0; i < darray_length(self->scene->models); i++) {
+            Model *model = &self->scene->models[i];
+            u32 vertex_count = darray_length(model->vertices);
+            u32 index_count = darray_length(model->indices);
+
+            vkCmdDrawIndexed(command_buffer,
+                             index_count,
+                             1,
+                             index_offset,
+                             vertex_offset,
+                             0);
+
+            vertex_offset += vertex_count;
+            index_offset += index_count;
+        }
+    }
+    vkCmdEndRenderPass(command_buffer);
+
+#endif
 
     command_buffer_end(&self->command_buffers, self->current_frame);
 
