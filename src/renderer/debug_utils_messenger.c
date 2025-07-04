@@ -20,12 +20,12 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vulkan_debug_callback(
     const VkDebugUtilsMessageTypeFlagsEXT message_type,
     const VkDebugUtilsMessengerCallbackDataEXT *const callback_data,
     void *const user_data);
-static VkResult CreateDebugUtilsMessengerEXT(
+static VkResult createDebugUtilsMessengerEXT(
     VkInstance instance,
     const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
     const VkAllocationCallbacks *pAllocator,
     VkDebugUtilsMessengerEXT *pMessenger);
-static void DestroyDebugUtilsMessengerEXT(
+static void destroyDebugUtilsMessengerEXT(
     VkInstance instance,
     VkDebugUtilsMessengerEXT messenger,
     const VkAllocationCallbacks *pAllocator);
@@ -72,7 +72,7 @@ DebugUtilsMessenger *debug_utils_messenger_new(
     this->threshold = threshold;
     this->instance = instance;
 
-    vulkan_check(CreateDebugUtilsMessengerEXT(instance->handle,
+    vulkan_check(createDebugUtilsMessengerEXT(instance->handle,
                                               &create_info,
                                               NULL,
                                               &this->messenger),
@@ -83,7 +83,7 @@ DebugUtilsMessenger *debug_utils_messenger_new(
 
 void debug_utils_messenger_destroy(DebugUtilsMessenger *this) {
     if (this->messenger != NULL) {
-        DestroyDebugUtilsMessengerEXT(this->instance->handle,
+        destroyDebugUtilsMessengerEXT(this->instance->handle,
                                       this->messenger,
                                       NULL);
         this->messenger = NULL;
@@ -205,7 +205,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vulkan_debug_callback(
     return VK_FALSE;
 }
 
-static VkResult CreateDebugUtilsMessengerEXT(
+static VkResult createDebugUtilsMessengerEXT(
     VkInstance instance,
     const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
     const VkAllocationCallbacks *pAllocator,
@@ -220,7 +220,7 @@ static VkResult CreateDebugUtilsMessengerEXT(
     }
 }
 
-static void DestroyDebugUtilsMessengerEXT(
+static void destroyDebugUtilsMessengerEXT(
     VkInstance instance,
     VkDebugUtilsMessengerEXT messenger,
     const VkAllocationCallbacks *pAllocator) {

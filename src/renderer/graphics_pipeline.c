@@ -3,7 +3,6 @@
 #include "assets/vertex.h"
 #include "containers/darray.h"
 #include "core/defines.h"
-#include "core/logging.h"
 #include "renderer/pipeline_layout.h"
 #include "renderer/render_pass.h"
 #include "renderer/shader_module.h"
@@ -304,14 +303,4 @@ void graphics_pipeline_destroy(GraphicsPipeline *self) {
     render_pass_destroy(self->render_pass);
     free(self->render_pass);
     pipeline_layout_destroy(&self->pipeline_layout);
-}
-
-VkDescriptorSet graphics_pipeline_descriptor_set(const GraphicsPipeline *self,
-                                                 u64 index) {
-    UNUSED(self);
-    UNUSED(index);
-
-    TODO("graphics_pipeline_descriptor_set");
-
-    return NULL;
 }

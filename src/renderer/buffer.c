@@ -1,4 +1,5 @@
 #include "buffer.h"
+#include "core/logging.h"
 #include "renderer/device_memory.h"
 #include "renderer/single_time_commands.h"
 #include "renderer/vulkan.h"
@@ -72,6 +73,7 @@ void buffer_copy_from(const Buffer *self,
                       const Buffer *src,
                       VkDeviceSize size) {
     single_time_commands_submit(command_pool) {
+        LOG_TRACE("copying buffer from buffer");
         VkBufferCopy copy_region = {
             .srcOffset = 0,
             .dstOffset = 0,

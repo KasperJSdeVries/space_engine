@@ -22,7 +22,7 @@ static inline void single_time_commands_end(CommandPool *command_pool,
     vkEndCommandBuffer(command_buffer);
 
     VkSubmitInfo submit_info = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
         .commandBufferCount = 1,
         .pCommandBuffers = &command_buffer,
     };
@@ -37,8 +37,9 @@ static inline void single_time_commands_end(CommandPool *command_pool,
     CommandBuffers __command_buffers__ = command_buffers_new(command_pool, 1); \
     for (VkCommandBuffer command_buffer = single_time_commands_begin(          \
              command_buffers_get(&__command_buffers__, 0));                    \
-         false;                                                                \
+         command_buffer != NULL;                                               \
          single_time_commands_end(command_pool, command_buffer),               \
-                         command_buffers_destroy(&__command_buffers__))
+                         command_buffers_destroy(&__command_buffers__),        \
+                         command_buffer = NULL)
 
 #endif // SINGLE_TIME_COMMANDS_H

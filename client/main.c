@@ -83,7 +83,7 @@ int main(void) {
     Application application = application_new(window_config,
                                               &scene,
                                               VK_PRESENT_MODE_IMMEDIATE_KHR,
-                                              false);
+                                              true);
 
     application_run(&application);
 

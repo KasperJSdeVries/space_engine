@@ -5,7 +5,6 @@
 #include "core/logging.h"
 #include "renderer/instance.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -139,6 +138,29 @@ Device device_new(VkPhysicalDevice physical_device,
     vkGetDeviceQueue(self.handle, compute_family, 0, &self.compute_queue);
     vkGetDeviceQueue(self.handle, present_family, 0, &self.present_queue);
     vkGetDeviceQueue(self.handle, transfer_family, 0, &self.transfer_queue);
+
+#define get_procedure(name)                                                    \
+    {                                                                          \
+        PFN_##name func = (PFN_##name)vkGetDeviceProcAddr(self.handle, #name); \
+        if (func == NULL) {                                                    \
+            LOG_FATAL("failed to get address of '%s''", #name);                \
+            exit(EXIT_FAILURE);                                                \
+        }                                                                      \
+        self.procedures.name = func;                                           \
+    }
+
+    get_procedure(vkCreateAccelerationStructureKHR);
+    get_procedure(vkDestroyAccelerationStructureKHR);
+    get_procedure(vkGetAccelerationStructureBuildSizesKHR);
+    get_procedure(vkCmdBuildAccelerationStructuresKHR);
+    get_procedure(vkCmdCopyAccelerationStructureKHR);
+    get_procedure(vkCmdTraceRaysKHR);
+    get_procedure(vkCreateRayTracingPipelinesKHR);
+    get_procedure(vkGetRayTracingShaderGroupHandlesKHR);
+    get_procedure(vkGetAccelerationStructureDeviceAddressKHR);
+    get_procedure(vkCmdWriteAccelerationStructuresPropertiesKHR);
+
+#undef get_procedure
 
     return self;
 }

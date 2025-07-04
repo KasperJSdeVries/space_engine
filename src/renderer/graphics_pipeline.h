@@ -25,7 +25,4 @@ GraphicsPipeline graphics_pipeline_new(const Swapchain *swapchain,
                                        b8 is_wireframe);
 void graphics_pipeline_destroy(GraphicsPipeline *self);
 
-VkDescriptorSet graphics_pipeline_descriptor_set(const GraphicsPipeline *self,
-                                                 u64 index);
-
 #endif // GRAPHICS_PIPELINE_H

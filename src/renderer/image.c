@@ -135,6 +135,10 @@ void image_transition_layout(Image *self,
                              CommandPool *command_pool,
                              VkImageLayout new_layout) {
     single_time_commands_submit(command_pool) {
+        LOG_TRACE("Transitioning image layout from %d to %d",
+                  self->layout,
+                  new_layout);
+
         VkImageMemoryBarrier barrier = {
             .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
             .oldLayout = self->layout,
@@ -175,7 +179,7 @@ void image_transition_layout(Image *self,
         } else if (self->layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
                    new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
             barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
             srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
             dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
@@ -213,6 +217,7 @@ void image_copy_from(Image *self,
                      CommandPool *command_pool,
                      const Buffer *buffer) {
     single_time_commands_submit(command_pool) {
+        LOG_TRACE("copying image from buffer");
         VkBufferImageCopy region = {
             .bufferOffset = 0,
             .bufferRowLength = 0,

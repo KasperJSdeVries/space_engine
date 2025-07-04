@@ -60,18 +60,11 @@
         inherit (self.checks.${system}.pre-commit-check) shellHook;
         buildInputs = buildInputs ++ self.checks.${system}.pre-commit-check.enabledPackages;
         packages = with pkgs; [
-          clang-tools
           gdb
-          glslls
           ikos
-          nil
-          neocmakelsp
           nodejs
           kdePackages.kcachegrind
-          cudaPackages.nsight_systems
           vulkan-tools
-          vscode-langservers-extracted
-          yaml-language-server
         ];
       };
 
