@@ -3,6 +3,10 @@
 .pre-commit-config.yaml
 result
 
+# large assets
+assets/textures/
+assets/models/
+
 # Build Artifacts
 build/
 build.ninja

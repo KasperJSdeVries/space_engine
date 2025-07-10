@@ -14,7 +14,9 @@ Texture texture_new(const char *filename) {
         stbi_load(filename, &width, &height, &channels, STBI_rgb_alpha);
 
     if (pixels == NULL) {
-        LOG_FATAL("failed to load texture image '%s'", filename);
+        LOG_FATAL("failed to load texture image '%s': %s",
+                  filename,
+                  stbi_failure_reason());
     }
 
     return (Texture){sampler_config_default(), width, height, channels, pixels};

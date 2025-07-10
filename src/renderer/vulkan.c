@@ -1,18 +1,5 @@
 #include "vulkan.h"
 
-#include "core/logging.h"
-
-#include <stdlib.h>
-
-void vulkan_check(VkResult result, const char *operation) {
-    if (result != VK_SUCCESS) {
-        LOG_FATAL("failed to %s (%s)",
-                  operation,
-                  vulkan_result_to_string(result));
-        exit(EXIT_FAILURE);
-    }
-}
-
 const char *vulkan_result_to_string(VkResult result) {
     switch (result) {
 

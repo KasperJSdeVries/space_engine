@@ -4,8 +4,13 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-void _log_output(LogLevel level, char *message, ...) {
+void _log_output(LogLevel level,
+                 const char *file,
+                 u32 line,
+                 char *message,
+                 ...) {
     const char *level_strings[] =
         {"[FATAL]", "[ERROR]", "[WARN]", "[INFO]", "[DEBUG]", "[TRACE]"};
     const char *color_strings[] =
@@ -34,12 +39,15 @@ void _log_output(LogLevel level, char *message, ...) {
     b8 is_error = (level == LOG_LEVEL_ERROR || level == LOG_LEVEL_FATAL);
     FILE *console_handle = is_error ? stderr : stdout;
 
-    fprintf(console_handle,
-            "\033[%sm%s %s\033[0m\n",
+    const char *filename = strrchr(file, '/') + 1;
 
+    fprintf(console_handle,
+            "\033[%sm%s %s \033[1;97m(%s:%d)\033[0m\n",
             color_strings[level],
             level_strings[level],
-            out_message);
+            out_message,
+            filename,
+            line);
 
     free(out_message);
 
@@ -51,9 +59,9 @@ void report_assertion_failure(const char *expression,
                               const char *file,
                               i32 line) {
     _log_output(LOG_LEVEL_FATAL,
-                "Assertion Failure at (%s:%d): %s, message: %s",
                 file,
                 line,
+                "Assertion Failure: %s, message: %s",
                 expression,
                 message);
 }
