@@ -2,7 +2,7 @@ BasedOnStyle: LLVM
 AlignAfterOpenBracket: Align
 AllowAllArgumentsOnNextLine: false
 AllowAllParametersOfDeclarationOnNextLine: false
-ColumnLimit: 80
+ColumnLimit: 120
 BinPackArguments: false
 BinPackParameters: false
 BreakArrays: false

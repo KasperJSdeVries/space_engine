@@ -3,6 +3,7 @@
 
 #include "core/defines.h"
 #include "renderer/bottom_level_acceleration_structure.h"
+#include "renderer/camera.h"
 #include "renderer/command_buffers.h"
 #include "renderer/command_pool.h"
 #include "renderer/debug_utils_messenger.h"
@@ -11,6 +12,7 @@
 #include "renderer/fence.h"
 #include "renderer/framebuffer.h"
 #include "renderer/graphics_pipeline.h"
+#include "renderer/input.h"
 #include "renderer/instance.h"
 #include "renderer/ray_tracing_pipeline.h"
 #include "renderer/semaphore.h"
@@ -52,11 +54,14 @@ typedef struct {
     ImageView output_image_view;
     RayTracingPipeline ray_tracing_pipeline;
     ShaderBindingTable shader_binding_table;
+    Camera camera;
+    Input input;
     Scene *scene;
     u64 current_frame;
     VkPresentModeKHR present_mode;
     u32 total_number_of_samples;
     u32 number_of_samples;
+    f64 time;
 } Application;
 
 Application application_new(WindowConfig window_config,

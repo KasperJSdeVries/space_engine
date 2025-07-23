@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.19)
 project(space_engine C)
 
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_FLAGS
+set(CMAKE_C_FLAGS # "-fsanitize=address -fno-omit-frame-pointer"
     "-Wall -Wextra -Wpedantic -Werror -Wno-language-extension-token -ggdb")
 
 add_compile_definitions($<$<CONFIG:Debug>:_DEBUG=1>)

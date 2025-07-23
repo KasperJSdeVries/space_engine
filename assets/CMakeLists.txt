@@ -1,4 +1,4 @@
-file(GLOB_RECURSE model_files CONFIGURE_DEPENDS "models/*.obj" "models/*.mtl")
+file(GLOB_RECURSE model_files CONFIGURE_DEPENDS "models/*")
 file(
   GLOB_RECURSE
   shader_files
@@ -10,8 +10,7 @@ file(
   "shaders/*.rchit"
   "shaders/*.rmiss")
 file(GLOB_RECURSE shader_extra_files CONFIGURE_DEPENDS "shaders/*.glsl")
-file(GLOB_RECURSE texture_files CONFIGURE_DEPENDS "textures/*.jpg"
-     "textures/*.png" "textures/*.txt")
+file(GLOB_RECURSE texture_files CONFIGURE_DEPENDS "textures/*")
 
 foreach(shader ${shader_files})
   get_filename_component(file_name ${shader} NAME)
@@ -33,10 +32,10 @@ endforeach()
 
 macro(copy_assets asset_files dir_name copied_files)
   foreach(asset ${${asset_files}})
-    get_filename_component(file_name ${asset} NAME)
+    file(RELATIVE_PATH relative_path ${CMAKE_CURRENT_SOURCE_DIR}/ ${asset})
     get_filename_component(full_path ${asset} ABSOLUTE)
-    set(output_dir ${CMAKE_CURRENT_BINARY_DIR}/${dir_name})
-    set(output_file ${output_dir}/${file_name})
+    set(output_dir ${CMAKE_CURRENT_BINARY_DIR}/)
+    set(output_file ${output_dir}/${relative_path})
     set(${copied_files} ${${copied_files}} ${output_file})
     set(${copied_files}
         ${${copied_files}}

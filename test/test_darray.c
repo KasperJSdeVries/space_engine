@@ -1,11 +1,11 @@
-#include <setjmp.h>
+#include "containers/darray.h"
+#include "core/defines.h"
+
+#include <setjmp.h> // IWYU pragma: keep
 #include <stdarg.h>
 #include <stddef.h>
 
 #include <cmocka.h>
-
-#include "containers/darray.h"
-#include "core/defines.h"
 
 static void test_darray_push(void **state) {
     (void)state;

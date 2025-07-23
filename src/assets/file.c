@@ -20,14 +20,18 @@ u8 *file_read(const char *filename, u64 *out_file_size) {
 
     rewind(fp);
 
-    u8 *buffer = malloc(file_size);
+    u8 *buffer = malloc(file_size + 1);
 
     if (fread(buffer, file_size, 1, fp) != 1) {
         LOG_ERROR("failed to read file '%s'", filename);
         exit(EXIT_FAILURE);
     }
 
+    buffer[file_size] = '\0';
+
     *out_file_size = file_size;
+
+    fclose(fp);
 
     return buffer;
 }

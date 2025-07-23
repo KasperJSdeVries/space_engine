@@ -1,11 +1,11 @@
-#include <setjmp.h>
+#include "ecs/entity.h"
+#include "ecs/world.h"
+
+#include <setjmp.h> // IWYU pragma: keep
 #include <stdarg.h>
 #include <stddef.h>
 
 #include <cmocka.h>
-
-#include "ecs/entity.h"
-#include "ecs/world.h"
 
 static void test_entity_creation(void **state) {
     (void)state;
